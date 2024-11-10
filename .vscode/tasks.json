@@ -1,0 +1,55 @@
+{
+    // See https://go.microsoft.com/fwlink/?LinkId=733558
+    // for the documentation about the tasks.json format
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Vagrant Up",
+            "type": "shell",
+            "command": "vagrant",
+            "args": [
+                "up"
+            ]
+        },
+        {
+            "label": "Vagrant Destroy",
+            "type": "shell",
+            "command": "vagrant",
+            "args": [
+                "destroy"
+            ]
+        },
+        {
+            "label": "Vagrant Destroy and Up",
+            "type": "shell",
+            "command": "vagrant",
+            "args": [
+                "destroy",
+                "&&",
+                "vagrant",
+                "up"
+            ]
+        },
+        {
+            "label": "Vagrant Package the Box",
+            "type": "shell",
+            "command": "vagrant",
+            "args": [
+                "package",
+                "--output",
+                "${workspaceFolder}.box"
+            ]
+        },
+        {
+            "label": "Add the Box to Vagrant",
+            "type": "shell",
+            "command": "vagrant",
+            "args": [
+                "box",
+                "add",
+                "${workspaceFolder}",
+                "${workspaceFolder}.box"
+            ]
+        },
+    ]
+}
