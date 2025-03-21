@@ -47,6 +47,7 @@ Vagrant.configure("2") do |config|
       apt-get install -y apache2 php mysql-server git php
   SHELL
   config.vm.provision "shell", path: "public/provision.sh"
+  config.vm.provision "shell", path: "public/php.ini.sh"
 
   config.vm.hostname = "avnlearn.local" 
 end

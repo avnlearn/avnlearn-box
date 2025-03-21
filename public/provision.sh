@@ -36,7 +36,9 @@ function Install() {
     curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
     chmod +x wp-cli.phar
     mv wp-cli.phar /usr/local/bin/wp
-
+    curl -O https://raw.githubusercontent.com/wp-cli/wp-cli/v2.11.0/utils/wp-completion.bash
+    chmod +x wp-completion.bash
+    mv wp-completion.bash /etc/bash_completion.d/
 }
 
 function phpmyadmin() {
@@ -71,10 +73,10 @@ function wordpress_install() {
     find . -type f -exec chmod 644 {} \; #
 }
 
-function mysql() {
+function mysql_db() {
     echo "TODO : Create a MySQL database for WordPress"
-    service mysql start
-    # systemctl mysql start
+    # service mysql start
+    systemctl start mysql
     mysql -e "CREATE DATABASE $WP_DATABASE_NAME;"
     mysql -e "CREATE USER '$WP_DATABASE_USER'@'$WEB_HOSTNAME' IDENTIFIED BY '$WP_DATABASE_PASSWORD';"
     mysql -e "GRANT ALL PRIVILEGES ON $WP_DATABASE_NAME.* TO '$WP_DATABASE_USER'@'$WEB_HOSTNAME';"
@@ -89,19 +91,20 @@ function wordpress_apache() {
     echo "TODO : Enable URL rewriting with:"
     a2enmod rewrite
     echo "TODO : reload apache2 to apply all these changes"
-    systemctl apache2 reload
+    systemctl reload apache2
+
 }
 
 function wordpress_config() {
     echo "TODO : WordPress Setup"
     cd /var/www/html || exit
     sudo wp config create --dbname=$WP_DATABASE_NAME --dbuser=$WP_DATABASE_USER --dbpass=$WP_DATABASE_PASSWORD --dbhost=$WEB_HOSTNAME --allow-root --extra-php <<PHP
-define( 'WP_DEBUG', true );
-define( 'WP_DEBUG_LOG', true );
-@ini_set('upload_max_filesize', '64M');
-@ini_set('max_file_uploads', 1000);
-@ini_set('post_max_size', '64M');
-@ini_set('memory_limit', '256M');
+define('WP_DEBUG', true); // Enable WP_DEBUG mode
+define('WP_DEBUG_LOG', true); // Enable error logging to wp-content/debug.log
+define('WP_DEBUG_DISPLAY', false); // Disable display of errors and warnings
+define('SCRIPT_DEBUG', true); // Use unminified versions of CSS and JS files
+define('WP_MEMORY_LIMIT', '256M'); // Increase memory limit
+define('AUTOMATIC_UPDATER_DISABLED', true); // Disable automatic updates
 PHP
     sudo wp core install --url="localhost:8080" --title="WordPress" --admin_user="$WORDPRESS_USER" --admin_password="$WORDPRESS_PASSWORD" --admin_email="example@example.com" --allow-root
 
@@ -126,7 +129,7 @@ function helper() {
 }
 
 Install
-mysql
+mysql_db
 wordpress_install
 phpmyadmin
 wordpress_config

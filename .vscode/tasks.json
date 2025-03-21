@@ -51,5 +51,26 @@
                 "${workspaceFolder}.box"
             ]
         },
+        {
+            "label": "WordPress Update",
+            "type": "shell",
+            "command": "vagrant",
+            "args": [
+                "ssh",
+                "-c",
+                "'cd /var/www/html && sudo wp cli update'"
+            ]
+        },
+        {
+            "label": "WordPress Plugins Update",
+            "type": "shell",
+            "command": "vagrant",
+            "args": [
+                "ssh",
+                "-c",
+                "'cd /var/www/html && sudo wp plugin update --all'"
+            ]
+        }
+    
     ]
 }
