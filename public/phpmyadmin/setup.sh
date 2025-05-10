@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # shellcheck source=/dev/null
-source /vagrant/.env
+source /vagrant/public/bootstrap.sh
 
 function Install() {
     echo "Install : phpMyAdmin"

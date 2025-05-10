@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # shellcheck source=/dev/null
-source /vagrant/.env
+source /vagrant/public/bootstrap.sh
 # Define the target directory
 TARGET_DIR="/var/www/joomla"
 
@@ -90,5 +90,5 @@ Install
 SetPermissions
 Database_Create "$TARGET_DIR"
 ConfigureSettings
-ApacheConfigure "$TARGET_DIR" "ssl"
+ApacheConfigure "$TARGET_DIR" # "ssl"
 unset TARGET_DIR

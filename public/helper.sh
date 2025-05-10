@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # shellcheck source=/dev/null
-source /vagrant/.env
+source /vagrant/public/bootstrap.sh
 
 function Apache_Setup() {
     echo "TODO : Enable Apache mod_rewrite"

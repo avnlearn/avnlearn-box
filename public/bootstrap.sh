@@ -27,11 +27,14 @@ export COMPOSER_ALLOW_SUPERUSER=1
 
 function Composer_Install() {
     local Install_Package=("$@")
-    echo "TODO : Install " "${Install_Package[@]}"
+    echo "==========START Composer=========="
+    echo "Install " "${Install_Package[@]}"
     composer global require "${Install_Package[@]}"
+    echo "==========END Composer=========="
 }
 
 function Database_Create() {
+    echo "==========START Database=========="
     local DIR_NAME
     local DATABASE_NAME
     DIR_NAME="$1"
@@ -58,6 +61,7 @@ function Database_Create() {
         echo "Error: Failed to create database '${DATABASE_NAME}'."
         return 1
     fi
+    echo "==========END Database=========="
 }
 
 function ApacheConfigure() {
@@ -66,7 +70,7 @@ function ApacheConfigure() {
     local CONFIG_TYPE="$2" # Default to 'http' if not provided
     DIR_NAME="$1"
     CONFIG_NAME="$(basename "$DIR_NAME")"
-
+    echo "==========START Apache2=========="
     # Check if DIR_NAME is provided
     if [[ -z "$DIR_NAME" ]]; then
         echo "Error: Directory name is required."
@@ -121,7 +125,7 @@ EOF" || {
     fi
 
     # Restart Apache to apply changes
-    systemctl restart apache2 || {
+    systemctl reload apache2 || {
         echo "Error: Failed to restart Apache."
         return 1
     }
@@ -130,6 +134,7 @@ EOF" || {
 
     # Additional configuration setup based on CONFIG_TYPE
     if [[ "$CONFIG_TYPE" == "ssl" ]]; then
+        echo ##########START ssl##########"
         # Create SSL configuration if CONFIG_TYPE is 'ssl'
         local SSL_CONFIG_FILE="/etc/apache2/sites-available/avn-${CONFIG_NAME}-ssl.conf"
         if [[ -f "$SSL_CONFIG_FILE" ]]; then
@@ -178,13 +183,15 @@ EOF" || {
         }
 
         # Restart Apache to apply changes
-        systemctl restart apache2 || {
-            echo "Error: Failed to restart Apache."
+        systemctl reload apache2 || {
+            echo "Error: Failed to reload Apache."
             return 1
         }
-
+        # systemctl reload apache2
         echo "SSL configuration for ${CONFIG_NAME} has been set up successfully."
+        echo ##########END ssl##########"
     fi
+    echo "==========END Apache2=========="
 }
 
 function Generate_Index_File() {
@@ -192,7 +199,7 @@ function Generate_Index_File() {
     local INDEX_PATH="$DIR_NAME/index.html"
     local CONFIG_NAME
     CONFIG_NAME="$(basename "$DIR_NAME")"
-
+    echo "==========START Index.html=========="
     mkdir -p "$DIR_NAME" || {
         echo "Error: Failed to create directory '$DIR_NAME'."
         return 1
@@ -216,6 +223,7 @@ function Generate_Index_File() {
 EOF
 
     echo "Index file created successfully at '$INDEX_PATH'."
+    echo "==========END Index.html=========="
 }
 
 function Web_Download_File() {
@@ -223,6 +231,7 @@ function Web_Download_File() {
     local OutFile="$2"
     local Outdir
     Outdir="$(dirname "${OutFile}")"
+    echo "==========START Download=========="
     # Check if the target directory exists
     if [ ! -d "$Outdir" ]; then
         echo "Error: $Outdir does not exist. Exiting."
@@ -237,12 +246,13 @@ function Web_Download_File() {
     fi
 
     echo "Download of ${OutFile} completed successfully."
+    echo "==========END Download=========="
     return 0
 }
 
 function Global_Permission() {
     local DIR_NAME="$1"
-
+    echo "==========START Permission=========="
     if [[ -d "$DIR_NAME" ]]; then
         chown -R www-data:www-data "$DIR_NAME" &&
             find "$DIR_NAME" -type d -exec chmod 755 {} \; &&
@@ -255,4 +265,5 @@ function Global_Permission() {
         echo "$DIR_NAME does not exist." >&2
         return 1
     fi
+    echo "==========END Permission=========="
 }

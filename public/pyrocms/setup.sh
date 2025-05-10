@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # shellcheck source=/dev/null
-source /vagrant/.env
+source /vagrant/public/bootstrap.sh
 # Define the target directory
 TARGET_DIR="/var/www/laravel"
 

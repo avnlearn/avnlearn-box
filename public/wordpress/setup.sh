@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # shellcheck source=/dev/null
-source /vagrant/.env
+source /vagrant/public/bootstrap.sh
 # Define the target directory
 TARGET_DIR="/var/www/wordpress"
 
@@ -70,7 +70,7 @@ WP_CLI_Install
 Install
 Database_Create "$TARGET_DIR"
 SetPermissions
-ApacheConfigure "$TARGET_DIR" "ssl"
+ApacheConfigure "$TARGET_DIR" # "ssl"
 ConfigureSettings
 
 unset TARGET_DIR
