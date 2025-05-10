@@ -51,7 +51,7 @@ function Install() {
     apt install -y "${PACKAGES[@]}"
     apt autoremove && apt autoclean
     a2enmod rewrite
-    a2enmod ssl
+    # a2enmod ssl
     systemctl restart apache2
     systemctl restart sendmail
     # systemctl enable sendmail
@@ -96,6 +96,6 @@ function mysql_db() {
 
 Install
 SetPermissions
-ssl_setup
+# ssl_setup
 mysql_db
 echo "Setup completed successfully."

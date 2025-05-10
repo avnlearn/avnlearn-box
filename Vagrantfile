@@ -18,7 +18,7 @@ Vagrant.configure("2") do |config|
     vb.customize ["modifyvm", :id, "--name", "avnlearn-box"] 
   end
   config.vm.box_check_update = false
-  config.vm.provision "shell", path: ".env"
+  config.vm.provision "shell", path: "public/bootstrap.sh"
   config.vm.provision "shell", path: "public/provision.sh"
   config.vm.provision "shell", path: "public/php.ini.sh"
   # config.vm.provision "shell", path: "public/phpmyadmin/setup.sh"

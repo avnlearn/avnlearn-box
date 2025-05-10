@@ -223,6 +223,7 @@ function Generate_Index_File() {
 EOF
 
     echo "Index file created successfully at '$INDEX_PATH'."
+    Global_Permission "$DIR_NAME"
     echo "==========END Index.html=========="
 }
 

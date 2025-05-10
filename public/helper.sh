@@ -18,5 +18,5 @@ function Helper() {
     echo -e "\tPassword : $WEB_PASSWD"
     echo "======================"
 }
-Apache_Setup
+# Apache_Setup
 Helper
