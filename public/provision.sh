@@ -1,14 +1,21 @@
 #!/usr/bin/env bash
-export WP_DATABASE_NAME="wordpress"
-export WP_DATABASE_USER="wpuser"
-export WP_DATABASE_PASSWORD="password"
-export WEB_HOSTNAME="localhost"
-export WORDPRESS_USER="admin"
-export WORDPRESS_PASSWORD="admin@123"
+
+# shellcheck source=/dev/null
+source /vagrant/.env
 
 function Install() {
-    APACHE2=(
+    PACKAGES=(
+        build-essential
+        apache2
+        php
+        composer
+        mysql-server
+        git
         libapache2-mod-php
+        php-common
+        php-http
+        php-oauth
+        php-sqlite3
         php-mysql
         php-cli
         php-pcov
@@ -23,115 +30,72 @@ function Install() {
         php-json
         php-imagick
         php-xdebug
+        php-http
+        php-raphf
+        unzip
+        openssl
+        sendmail
+        php-pear
+        php-dev
+        zlib1g-dev
+        libcurl4-openssl-dev
+        libevent-dev
+        libicu-dev
+        libidn2-0-dev
     )
-    echo "Install Apache2 :" "${APACHE2[@]}"
-    apt-get install -y "${APACHE2[@]}"
+    echo "Install Apache2 :" "${PACKAGES[@]}"
+    apt update && apt upgrade
+    apt install -y software-properties-common
+    add-apt-repository ppa:ondrej/php
+    apt update
+    apt install -y "${PACKAGES[@]}"
+    apt autoremove && apt autoclean
+    a2enmod rewrite
+    a2enmod ssl
     systemctl restart apache2
-
-    echo "TODO : Install Composer"
-    curl -sS https://getcomposer.org/installer | php
-    mv composer.phar /usr/local/bin/composer
-
-    echo "TODO : Install WP-CLI"
-    curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
-    chmod +x wp-cli.phar
-    mv wp-cli.phar /usr/local/bin/wp
-    curl -O https://raw.githubusercontent.com/wp-cli/wp-cli/v2.11.0/utils/wp-completion.bash
-    chmod +x wp-completion.bash
-    mv wp-completion.bash /etc/bash_completion.d/
+    systemctl restart sendmail
+    # systemctl enable sendmail
 }
 
-function phpmyadmin() {
-    echo "Install : phpMyAdmin"
-    export DEBIAN_FRONTEND="noninteractive"
-    apt install -yq phpmyadmin
-    echo "Set the MySQL administrative user's password"
-    sudo debconf-set-selections <<<"phpmyadmin phpmyadmin/dbconfig-install boolean true"
-    sudo debconf-set-selections <<<"phpmyadmin phpmyadmin/mysql/admin-user string $WP_DATABASE_USER"
-    sudo debconf-set-selections <<<"phpmyadmin phpmyadmin/mysql/admin-pass password $WP_DATABASE_PASSWORD"
-    sudo debconf-set-selections <<<"phpmyadmin phpmyadmin/mysql/app-pass password $WP_DATABASE_PASSWORD"
-    sudo debconf-set-selections <<<"phpmyadmin phpmyadmin/reconfigure-webserver multiselect apache2"
-    sudo dpkg-reconfigure -f noninteractive phpmyadmin
-    echo "Include /etc/phpmyadmin/apache.conf" >>/etc/apache2/apache2.conf
-    echo "TODO : Enable Apache mod_rewrite"
-    a2enmod rewrite && systemctl restart apache2
+function SetPermissions() {
+    chown -R www-data:www-data /var/www
+    chmod -R 755 /var/www
 }
 
-function wordpress_install() {
-    echo "TODO : Download and install WordPress"
-    cd /var/www/html || exit
-    rm -r index.html
-    wget https://wordpress.org/latest.tar.gz
-    tar -xzf latest.tar.gz
-    mv -f wordpress/* ./
-    rm -rf wordpress latest.tar.gz
-    echo "TODO : Let Apache be owner"
-    chown www-data:www-data -R /var/www/html
-    echo "TODO : Change Directory permissions rwxr-xr-x"
-    find . -type d -exec chmod 755 {} \;
-    echo "TODO : Change file permissions rw-r--r--"
-    find . -type f -exec chmod 644 {} \; #
+function ssl_setup() {
+    if [ ! -f "/etc/ssl/certs/${PRIVATE_SSL}.crt" ]; then
+        echo "Setting up SSL..."
+        mkdir -p /etc/ssl/certs /etc/ssl/private
+        openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout "/etc/ssl/private/${PRIVATE_SSL}.key" -out "/etc/ssl/certs/${PRIVATE_SSL}.crt" -subj "/C=US/ST=State/L=City/O=Organization/OU=Unit/CN=*.local"
+    else
+        echo "SSL certificate already exists."
+    fi
 }
 
 function mysql_db() {
-    echo "TODO : Create a MySQL database for WordPress"
-    # service mysql start
-    systemctl start mysql
-    mysql -e "CREATE DATABASE $WP_DATABASE_NAME;"
-    mysql -e "CREATE USER '$WP_DATABASE_USER'@'$WEB_HOSTNAME' IDENTIFIED BY '$WP_DATABASE_PASSWORD';"
-    mysql -e "GRANT ALL PRIVILEGES ON $WP_DATABASE_NAME.* TO '$WP_DATABASE_USER'@'$WEB_HOSTNAME';"
-    mysql -e "FLUSH PRIVILEGES;"
-}
+    echo "Creating user: ${WEB_USERNAME}@${WEB_HOSTNAME}"
+    mysql -u root -e "CREATE USER IF NOT EXISTS '${WEB_USERNAME}'@'${WEB_HOSTNAME}' IDENTIFIED BY '${WEB_PASSWD}';" 2>&1 || {
+        echo "Failed to create user: $?"
+        exit 1
+    }
 
-function wordpress_apache() {
-    echo "TODO : Create Apache virtual host configuration for WordPress"
-    cp -f "/vagrant/public/config/wordpress.conf" "/etc/apache2/sites-available/wordpress.conf"
-    echo "TODO : Enable the site with:"
-    a2ensite wordpress
-    echo "TODO : Enable URL rewriting with:"
-    a2enmod rewrite
-    echo "TODO : reload apache2 to apply all these changes"
-    systemctl reload apache2
+    echo "Granting privileges to user: ${WEB_USERNAME}@${WEB_HOSTNAME}"
+    mysql -u root -e "GRANT ALL PRIVILEGES ON *.* TO '${WEB_USERNAME}'@'${WEB_HOSTNAME}' WITH GRANT OPTION;" 2>&1 || {
+        echo "Failed to grant privileges: $?"
+        exit 1
+    }
 
-}
+    echo "Flushing privileges..."
+    mysql -u root -e "FLUSH PRIVILEGES;" 2>&1 || {
+        echo "Failed to flush privileges: $?"
+        exit 1
+    }
 
-function wordpress_config() {
-    echo "TODO : WordPress Setup"
-    cd /var/www/html || exit
-    sudo wp config create --dbname=$WP_DATABASE_NAME --dbuser=$WP_DATABASE_USER --dbpass=$WP_DATABASE_PASSWORD --dbhost=$WEB_HOSTNAME --allow-root --extra-php <<PHP
-define('WP_DEBUG', true); // Enable WP_DEBUG mode
-define('WP_DEBUG_LOG', true); // Enable error logging to wp-content/debug.log
-define('WP_DEBUG_DISPLAY', false); // Disable display of errors and warnings
-define('SCRIPT_DEBUG', true); // Use unminified versions of CSS and JS files
-define('WP_MEMORY_LIMIT', '256M'); // Increase memory limit
-define('AUTOMATIC_UPDATER_DISABLED', true); // Disable automatic updates
-PHP
-    sudo wp core install --url="localhost:8080" --title="WordPress" --admin_user="$WORDPRESS_USER" --admin_password="$WORDPRESS_PASSWORD" --admin_email="example@example.com" --allow-root
-
-    # Upload media
-    chmod -R 755 /var/www/html/wp-content/uploads
-    chown -R www-data:www-data /var/www/html/wp-content/uploads
-    sudo wp user import-csv /vagrant/public/users.csv --allow-root
-}
-
-function helper() {
-    echo "TODO : WordPress Complete"
-    echo "======================"
-    echo "WordPress : http://localhost:8080"
-    echo "Administrator"
-    echo -e "\tUsername : $WORDPRESS_USER"
-    echo -e "\tPassword : $WORDPRESS_PASSWORD"
-    echo "======================"
-    echo "phpMyAdmin : http://localhost:8080/phpmyadmin"
-    echo -e "\tUsername : $WP_DATABASE_USER"
-    echo -e "\tPassword : $WP_DATABASE_PASSWORD"
-    echo "======================"
+    echo "MySQL databases and user setup completed successfully."
 }
 
 Install
+SetPermissions
+ssl_setup
 mysql_db
-wordpress_install
-phpmyadmin
-wordpress_config
-wordpress_apache
-helper
+echo "Setup completed successfully."

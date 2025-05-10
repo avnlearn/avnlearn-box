@@ -1,53 +1,41 @@
-# -*- mode: ruby -*-
-# vi: set ft=ruby :
 
-# All Vagrant configuration is done below. The "2" in Vagrant.configure
-# configures the configuration version (we support older styles for
-# backwards compatibility). Please don't change it unless you know what
-# you're doing.
 Vagrant.configure("2") do |config|
-  # The most common configuration options are documented and commented below.
-  # For a complete reference, please see the online documentation at
-  # https://docs.vagrantup.com.
-
   config.vm.box = "ubuntu/jammy64"
 
+  # Network configuration
+  # config.vm.network "private_network", type: "dhcp"
+  config.vm.network "private_network", ip: "192.168.56.10"  # Change this IP as needed
+
+  # Custom domains
+  # config.vm.hostname = "mydev.local"
+  # config.vm.network "forwarded_port", guest: 80, host: 8080 # HTTP
+  # config.vm.network "forwarded_port", guest: 443, host: 8443 # HTTPS
+
+  
   config.vm.provider "virtualbox" do |vb|
     vb.memory = "2048"
     vb.cpus = 2
-    vb.customize ["modifyvm", :id, "--name", "avnlearn-box"] # Set VM name
+    vb.customize ["modifyvm", :id, "--name", "avnlearn-box"] 
   end
-
-  # Disable automatic box update checking. If you disable this, then
-  # boxes will only be checked for updates when the user runs
-  # `vagrant box outdated`. This is not recommended.
   config.vm.box_check_update = false
-
-  # Create a forwarded port mapping which allows access to a specific port
-  # within the machine from a port on the host machine. In the example below,
-  # accessing "localhost:8080" will access port 80 on the guest machine.
-  # NOTE: This will enable public access to the opened port
-  config.vm.network "forwarded_port", guest: 80, host: 8080
-
-  # Create a forwarded port mapping which allows access to a specific port
-  # within the machine from a port on the host machine and only allow access
-  # via 127.0.0.1 to disable public access
-  # config.vm.network "forwarded_port", guest: 80, host: 8080, host_ip: "127.0.0.1"
-
-  # Create a private network, which allows host-only access to the machine
-  # using a specific IP.
-  config.vm.network "private_network", ip: "192.168.56.23"
-
-  # Create a public network, which generally matched to bridged network.
-  # Bridged networks make the machine appear as another physical device on
-  # your network.
-  # config.vm.network "public_network"
-  config.vm.provision "shell", inline: <<-SHELL
-      apt-get update
-      apt-get install -y apache2 php mysql-server git php
-  SHELL
+  config.vm.provision "shell", path: ".env"
   config.vm.provision "shell", path: "public/provision.sh"
   config.vm.provision "shell", path: "public/php.ini.sh"
-
-  config.vm.hostname = "avnlearn.local" 
+  # config.vm.provision "shell", path: "public/phpmyadmin/setup.sh"
+  # config.vm.provision "shell", path: "public/bludit/setup.sh"
+  # config.vm.provision "shell", path: "public/cakephp/setup.sh"
+  # config.vm.provision "shell", path: "public/codeigniter/setup.sh"
+  # config.vm.provision "shell", path: "public/drupal/setup.sh"
+  # config.vm.provision "shell", path: "public/fuelphp/setup.sh"
+  # config.vm.provision "shell", path: "public/joomla/setup.sh"
+  # config.vm.provision "shell", path: "public/laravel/setup.sh"
+  # config.vm.provision "shell", path: "public/magento/setup.sh"
+  # config.vm.provision "shell", path: "public/mediawiki/setup.sh"
+  # config.vm.provision "shell", path: "public/moodle/setup.sh"
+  # config.vm.provision "shell", path: "public/php/setup.sh"
+  # config.vm.provision "shell", path: "public/processwire/setup.sh"
+  # config.vm.provision "shell", path: "public/pyrocms/setup.sh"
+  # config.vm.provision "shell", path: "public/symfony/setup.sh"
+  # config.vm.provision "shell", path: "public/wordpress/setup.sh"
+  config.vm.provision "shell", path: "public/helper.sh"
 end

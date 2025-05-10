@@ -103,3 +103,60 @@ The example above sets up a basic web server using Nginx. This custom box can be
 ### Conclusion
 
 Creating a custom Vagrant box is a powerful way to streamline your development workflow. By packaging your environment, you can ensure consistency across different projects and share your setup with team members easily.
+
+## Update `/etc/hosts`
+
+Certainly! Continuing from where we left off, you will need to add entries to your local `/etc/hosts` file to resolve the custom domains to the Vagrant box's IP address. Here’s how to do that:
+
+### Update `/etc/hosts`
+
+1. Open your terminal on your host machine.
+2. Edit the `/etc/hosts` file using a text editor with superuser privileges. For example:
+   ```bash
+   sudo nano /etc/hosts
+   ```
+3. Add the following lines to the file, replacing `192.168.56.10` with the actual IP address of your Vagrant box (if different):
+
+   ```bash
+   # 127.0.0.1 bludit.local
+   192.168.56.10 bludit.local
+   192.168.56.10 drupal.local
+   192.168.56.10 joomla.local
+   192.168.56.10 magento.local
+   192.168.56.10 moodle.local
+   192.168.56.10 processwire.local
+   192.168.56.10 wordpress.local
+   192.168.56.10 mediawiki.local
+   192.168.56.10 laravel.local
+   192.168.56.10 cakephp.local
+   192.168.56.10 fuelphp.local
+   192.168.56.10 symfony.local
+   192.168.56.10 cakephp.local
+   192.168.56.10 codeigniter.local
+   192.168.56.10 php.local
+   192.168.56.10 symfony.local
+   ```
+
+
+4. Save the file and exit the editor.
+
+## Apache2 Conf
+
+```conf
+<VirtualHost *:80>
+        ServerName mediawiki.local
+        Redirect permanent / https://mediawiki.local/
+    </VirtualHost>
+
+   <VirtualHost *:443>
+      ServerName mediawiki.local
+      DocumentRoot /var/www/mediawiki
+      SSLEngine on
+      SSLCertificateFile /etc/ssl/certs/selfsigned.crt
+      SSLCertificateKeyFile /etc/ssl/private/selfsigned.key
+      <Directory /var/www/mediawiki>
+         AllowOverride All
+         Require all granted
+      </Directory>
+   </VirtualHost>
+```
