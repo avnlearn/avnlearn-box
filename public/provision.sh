@@ -53,12 +53,8 @@ function Install() {
     a2enmod rewrite
     # a2enmod ssl
     systemctl restart apache2
-    systemctl reload apache2
+    # systemctl reload apache2
     systemctl restart sendmail
-    if [ -f "/etc/apache2/apache2.conf" ]; then
-        echo "ServerName ${HTTP2_HOST_IP}" >>/etc/apache2/apache2.conf
-    fi
-    apachectl configtest
     # systemctl enable sendmail
 }
 
