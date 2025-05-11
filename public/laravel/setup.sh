@@ -2,10 +2,10 @@
 # shellcheck source=/dev/null
 source /vagrant/public/bootstrap.sh
 # Define the target directory
-TARGET_DIR="/var/www/laravel"
+SITE_NAME="laravel"
+TARGET_DIR="/var/www/${SITE_NAME}.local/public_html"
 
-Generate_Index_File "${TARGET_DIR}"
-Global_Permission "${TARGET_DIR}"
-Database_Create "$TARGET_DIR"
-ApacheConfigure "$TARGET_DIR" # "ssl"
-unset TARGET_DIR
+Generate_Index_File "${TARGET_DIR}" "$SITE_NAME"
+# Global_Permission "${TARGET_DIR}"
+Database_Create "$SITE_NAME"
+ApacheConfigure "$TARGET_DIR" "$SITE_NAME" # "ssl"

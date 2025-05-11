@@ -2,12 +2,15 @@
 # shellcheck source=/dev/null
 source /vagrant/public/bootstrap.sh
 
+function SetPremission(){
+    sudo chmod -R 755 /var/www
+}
 function Apache_Setup() {
     echo "TODO : Enable Apache mod_rewrite"
     # a2enmod ssl
     a2dissite 000-default.conf
     systemctl restart apache2
-
+    systemctl reload apache2
 }
 function Helper() {
     echo "TODO : SERVER Complete"
@@ -18,5 +21,6 @@ function Helper() {
     echo -e "\tPassword : $WEB_PASSWD"
     echo "======================"
 }
-# Apache_Setup
+SetPremission
+Apache_Setup
 Helper

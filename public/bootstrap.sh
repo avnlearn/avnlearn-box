@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 export WEB_HOSTNAME="localhost"
-export WEB_HOST_IP="192.168.56.10"
+# export WEB_HOST_IP="192.168.56.10"
+# export WEB_HOST_IP="127.0.0.1"
+export WEB_HOST_IP="$WEB_HOSTNAME"
+export HTTP2_HOST_IP="localhost"
 export WEB_EMAIL_ID="mr.raj3010@gmail.com"
 export WEB_USERNAME="admin"
 export WEB_PASSWD="admin@123"
@@ -66,10 +69,12 @@ function Database_Create() {
 
 function ApacheConfigure() {
     local DIR_NAME
-    local CONFIG_NAME
-    local CONFIG_TYPE="$2" # Default to 'http' if not provided
+    local SITE_NAME="$2"
+    local CONFIG_TYPE="$3" # Default to 'http' if not provided
     DIR_NAME="$1"
-    CONFIG_NAME="$(basename "$DIR_NAME")"
+    SITE_NAME="$2"
+    CONFIG_TYPE="$3"
+    # CONFIG_NAME="$(basename "$DIR_NAME")"
     echo "==========START Apache2=========="
     # Check if DIR_NAME is provided
     if [[ -z "$DIR_NAME" ]]; then
@@ -84,24 +89,28 @@ function ApacheConfigure() {
     fi
 
     # Define the configuration file path
-    local CONFIG_FILE="/etc/apache2/sites-available/avn-${CONFIG_NAME}.conf"
+    local SITE_CONFIG_FILE="/etc/apache2/sites-available/${SITE_NAME}.local.conf"
 
     # Check if the configuration file already exists
-    if [[ -f "$CONFIG_FILE" ]]; then
-        echo "Error: Apache configuration file $CONFIG_FILE already exists."
+    if [[ -f "$SITE_CONFIG_FILE" ]]; then
+        echo "Error: Apache configuration file $SITE_CONFIG_FILE already exists."
         return 1
     fi
 
     # Create the Apache configuration file for HTTP
-    bash -c "cat <<EOF > $CONFIG_FILE
+    bash -c "cat <<EOF > $SITE_CONFIG_FILE
 <VirtualHost *:80>
-    ServerAdmin ${CONFIG_NAME}@avnlearn.com
-    ServerName ${CONFIG_NAME}.local
+    ServerAdmin ${SITE_NAME}@avnlearn.com
+    ServerName ${SITE_NAME}.local
     DocumentRoot $DIR_NAME
-    ServerAlias www.${CONFIG_NAME}.local
-
-    ErrorLog \${APACHE_LOG_DIR}/${CONFIG_NAME}_error.log
-    CustomLog \${APACHE_LOG_DIR}/${CONFIG_NAME}_access.log combined
+    ServerAlias www.${SITE_NAME}.local
+    <Directory $DIR_NAME>
+        AllowOverride All
+        Options -Indexes
+        Require all granted
+    </Directory>
+    ErrorLog \${APACHE_LOG_DIR}/${SITE_NAME}.local_error.log
+    CustomLog \${APACHE_LOG_DIR}/${SITE_NAME}.local_access.log combined
 </VirtualHost>
 EOF" || {
         echo "Error: Failed to create Apache configuration file."
@@ -109,19 +118,19 @@ EOF" || {
     }
 
     # Enable the new site
-    a2ensite "avn-${CONFIG_NAME}.conf" || {
-        echo "Error: Failed to enable site avn-${CONFIG_NAME}.conf."
+    a2ensite "${SITE_NAME}.local" || {
+        echo "Error: Failed to enable site ${SITE_NAME}.local.conf."
         return 1
     }
 
     # Add entries to /etc/hosts
     local HOSTS_FILE="/etc/hosts"
-    if ! grep -q "${CONFIG_NAME}.local" "$HOSTS_FILE"; then
-        echo "127.0.0.1 ${CONFIG_NAME}.local" >>"$HOSTS_FILE"
-        echo "127.0.0.1 www.${CONFIG_NAME}.local" >>"$HOSTS_FILE"
-        echo "Added ${CONFIG_NAME}.local to /etc/hosts."
+    if ! grep -q "${SITE_NAME}.local" "$HOSTS_FILE"; then
+        echo "${WEB_HOST_IP} ${SITE_NAME}.local" >>"$HOSTS_FILE"
+        echo "${WEB_HOST_IP} www.${SITE_NAME}.local" >>"$HOSTS_FILE"
+        echo "Added ${SITE_NAME}.local to /etc/hosts."
     else
-        echo "Entry for ${CONFIG_NAME}.local already exists in /etc/hosts."
+        echo "Entry for ${SITE_NAME}.local already exists in /etc/hosts."
     fi
 
     # Restart Apache to apply changes
@@ -130,13 +139,13 @@ EOF" || {
         return 1
     }
 
-    echo "Apache configuration for ${CONFIG_NAME} has been set up successfully."
+    echo "Apache configuration for ${SITE_NAME} has been set up successfully."
 
     # Additional configuration setup based on CONFIG_TYPE
     if [[ "$CONFIG_TYPE" == "ssl" ]]; then
         echo ##########START ssl##########"
         # Create SSL configuration if CONFIG_TYPE is 'ssl'
-        local SSL_CONFIG_FILE="/etc/apache2/sites-available/avn-${CONFIG_NAME}-ssl.conf"
+        local SSL_CONFIG_FILE="/etc/apache2/sites-available/${SITE_NAME}.local-ssl.conf"
         if [[ -f "$SSL_CONFIG_FILE" ]]; then
             echo "Error: SSL configuration file $SSL_CONFIG_FILE already exists."
             return 1
@@ -145,19 +154,19 @@ EOF" || {
         bash -c "cat <<EOF > $SSL_CONFIG_FILE
 <IfModule mod_ssl.c>
     <VirtualHost *:80>
-        ServerAdmin ${CONFIG_NAME}@avnlearn.com
-        ServerName ${CONFIG_NAME}.local
-        ServerAlias www.${CONFIG_NAME}.local
-        Redirect permanent / https://${CONFIG_NAME}.local/
+        ServerAdmin ${SITE_NAME}@avnlearn.com
+        ServerName ${SITE_NAME}.local
+        ServerAlias www.${SITE_NAME}.local
+        Redirect permanent / https://${SITE_NAME}.local/
     </VirtualHost>
     <VirtualHost *:443>
-        ServerAdmin ${CONFIG_NAME}@avnlearn.com
-        ServerName ${CONFIG_NAME}.local
+        ServerAdmin ${SITE_NAME}@avnlearn.com
+        ServerName ${SITE_NAME}.local
         DocumentRoot $DIR_NAME
-        ServerAlias www.${CONFIG_NAME}.local
+        ServerAlias www.${SITE_NAME}.local
 
-        ErrorLog \${APACHE_LOG_DIR}/${CONFIG_NAME}_ssl_error.log
-        CustomLog \${APACHE_LOG_DIR}/${CONFIG_NAME}_ssl_access.log combined
+        ErrorLog \${APACHE_LOG_DIR}/${SITE_NAME}.local_ssl_error.log
+        CustomLog \${APACHE_LOG_DIR}/${SITE_NAME}.local_ssl_access.log combined
 
         SSLEngine on
         SSLCertificateFile /etc/ssl/certs/${PRIVATE_SSL}.crt
@@ -177,8 +186,8 @@ EOF" || {
         }
 
         # Enable the SSL site
-        a2ensite "avn-${CONFIG_NAME}-ssl.conf" || {
-            echo "Error: Failed to enable SSL site avn-${CONFIG_NAME}-ssl.conf."
+        a2ensite "${SITE_NAME}.local-ssl" || {
+            echo "Error: Failed to enable SSL site ${SITE_NAME}.local-ssl."
             return 1
         }
 
@@ -188,7 +197,7 @@ EOF" || {
             return 1
         }
         # systemctl reload apache2
-        echo "SSL configuration for ${CONFIG_NAME} has been set up successfully."
+        echo "SSL configuration for ${SITE_NAME} has been set up successfully."
         echo ##########END ssl##########"
     fi
     echo "==========END Apache2=========="
@@ -197,8 +206,8 @@ EOF" || {
 function Generate_Index_File() {
     local DIR_NAME="$1"
     local INDEX_PATH="$DIR_NAME/index.html"
-    local CONFIG_NAME
-    CONFIG_NAME="$(basename "$DIR_NAME")"
+    local CONFIG_NAME="$2"
+    # CONFIG_NAME="$(basename "$DIR_NAME")"
     echo "==========START Index.html=========="
     mkdir -p "$DIR_NAME" || {
         echo "Error: Failed to create directory '$DIR_NAME'."
@@ -223,7 +232,7 @@ function Generate_Index_File() {
 EOF
 
     echo "Index file created successfully at '$INDEX_PATH'."
-    Global_Permission "$DIR_NAME"
+    chown -R "$USER":"$USER" "$DIR_NAME"
     echo "==========END Index.html=========="
 }
 
