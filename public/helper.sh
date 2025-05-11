@@ -8,7 +8,7 @@ function SetPremission(){
 function Apache_Setup() {
     echo "TODO : Enable Apache mod_rewrite"
     # a2enmod ssl
-    a2dissite 000-default.conf
+    # a2dissite 000-default.conf
     systemctl restart apache2
     systemctl reload apache2
 }

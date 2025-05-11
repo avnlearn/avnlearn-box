@@ -60,7 +60,7 @@ function Install() {
     fi
     apachectl configtest
     # systemctl enable sendmail
-    
+}
 
 function SetPermissions() {
     chown -R www-data:www-data /var/www
