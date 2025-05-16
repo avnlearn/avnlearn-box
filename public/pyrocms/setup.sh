@@ -2,30 +2,11 @@
 # shellcheck source=/dev/null
 source /vagrant/public/bootstrap.sh
 # Define the target directory
-TARGET_DIR="/var/www/laravel"
+SITE_NAME="pyrocms"
+TARGET_DIR="/var/www/${SITE_NAME}.local/public_html"
 
-function Install() {
-    echo "Starting pyrocms installation..."
-
-    # Check if the target directory exists
-    if [ ! -d "/var/www" ]; then
-        echo "Error: /var/www/html does not exist. Exiting."
-        return 1
-    fi
-    cd /var/www || {
-        echo "Error: Failed to change directory to /var/www/html. Exiting."
-        return 1
-    }
-    # Remove the default index.html if it exists
-    if [ -f "index.html" ]; then
-        rm -f index.html
-    fi
-    mkdir -p "$TARGET_DIR"
-}
-
-
-Install
-Global_Permission "${TARGET_DIR}"
-Database_Create "$(basename "$TARGET_DIR")"
-ApacheConfigure "$(basename "$TARGET_DIR")"
+Generate_Index_File "${TARGET_DIR}" "$SITE_NAME"
+# Global_Permission "${TARGET_DIR}"
+Database_Create "$SITE_NAME"
+ApacheConfigure "$TARGET_DIR" "$SITE_NAME" # "ssl"
 unset TARGET_DIR

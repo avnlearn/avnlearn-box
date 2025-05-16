@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # shellcheck source=/dev/null
 source /vagrant/public/bootstrap.sh
-# Define the target directory
-TARGET_DIR="/var/www/moodle"
+SITE_NAME="moodle"
+TARGET_DIR="/var/www/${SITE_NAME}"
 
 function Install() {
     local URI="https://download.moodle.org/download.php/direct/stable500/moodle-latest-500.zip"
@@ -14,7 +14,7 @@ function Install() {
     fi
     # Extract the downloaded package
     echo "Extracting Moodle..."
-    if ! unzip -q "$OutFile" -d "$TARGET_DIR"; then
+    if ! unzip -q "$OutFile" -d "/var/www/"; then
         echo "Error: Failed to extract Moodle. Exiting."
         return 1
     fi
@@ -25,8 +25,9 @@ function Install() {
 
 function SetPermissions() {
     # Set ownership and permissions for the Moodle directory
-    Global_Permission "${TARGET_DIR}"
-    Global_Permission "${TARGET_DIR}/moodledata"
+    Global_Permission "${TARGET_DIR}" "user"
+    [[ ! -d "${TARGET_DIR}/moodledata" ]] && mkdir -p "${TARGET_DIR}/moodledata"
+    Global_Permission "${TARGET_DIR}/moodledata" "user"
 }
 function ConfigureSettings() {
     echo "Configuring Moodle settings..."
@@ -50,11 +51,11 @@ global \$CFG;
 \$CFG->dbtype    = 'mysqli'; // Database type
 \$CFG->dblibrary = 'native'; // Database library
 \$CFG->dbhost    = '${WEB_HOSTNAME}'; // Database host
-\$CFG->dbname    = '${MOODLE_DB}'; // Database name
+\$CFG->dbname    = '${SITE_NAME}'; // Database name
 \$CFG->dbuser    = '${WEB_USERNAME}'; // Database user
 \$CFG->dbpass    = '${WEB_PASSWD}'; // Database password
 \$CFG->prefix    = 'mdl_'; // Database table prefix
-\$CFG->wwwroot   = 'http://localhost/moodle'; // Moodle URL
+\$CFG->wwwroot   = 'http://${SITE_NAME}.local'; // Moodle URL
 \$CFG->dataroot  = '${TARGET_DIR}/moodledata'; // Moodle data directory
 \$CFG->admin     = '${WEB_USERNAME}'; // Admin user
 \$CFG->directorypermissions = 02775; // Directory permissions
@@ -65,7 +66,7 @@ PHP
 
 Install
 SetPermissions
-Database_Create "$TARGET_DIR"
+Database_Create "$SITE_NAME"
 ConfigureSettings
-ApacheConfigure "$TARGET_DIR" # "ssl"
+ApacheConfigure "$TARGET_DIR" "$SITE_NAME" # "ssl"
 unset TARGET_DIR

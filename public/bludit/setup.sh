@@ -2,7 +2,8 @@
 # shellcheck source=/dev/null
 source /vagrant/public/bootstrap.sh
 # Define the target directory
-TARGET_DIR="/var/www/bludit"
+SITE_NAME="bludit"
+TARGET_DIR="/var/www/${SITE_NAME}"
 
 function Install() {
     local OutFile
@@ -32,8 +33,8 @@ function ConfigureSettings() {
 }
 
 Install
-Global_Permission "${TARGET_DIR}"
-Database_Create "$TARGET_DIR"
+Global_Permission "${TARGET_DIR}" "user"
+Database_Create "$SITE_NAME"
 ConfigureSettings
-ApacheConfigure "$TARGET_DIR" # "ssl"
+ApacheConfigure "$TARGET_DIR" "$SITE_NAME" # "ssl"
 unset TARGET_DIR

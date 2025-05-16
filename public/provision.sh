@@ -7,11 +7,14 @@ function Install() {
     PACKAGES=(
         build-essential
         apache2
+        ghostscript
         php
         composer
         mysql-server
         git
         libapache2-mod-php
+        php-bcmath
+        php-intl
         php-common
         php-http
         php-oauth
@@ -32,16 +35,17 @@ function Install() {
         php-xdebug
         php-http
         php-raphf
+        php-dev
         unzip
         openssl
         sendmail
         php-pear
-        php-dev
         zlib1g-dev
         libcurl4-openssl-dev
         libevent-dev
         libicu-dev
         libidn2-0-dev
+        irqbalance
     )
     echo "Install Apache2 :" "${PACKAGES[@]}"
     apt update && apt upgrade
@@ -50,24 +54,48 @@ function Install() {
     apt update
     apt install -y "${PACKAGES[@]}"
     apt autoremove && apt autoclean
-    a2enmod rewrite
-    # a2enmod ssl
-    systemctl restart apache2
-    # systemctl reload apache2
-    systemctl restart sendmail
     # systemctl enable sendmail
 }
 
-function SetPermissions() {
-    chown -R www-data:www-data /var/www
-    chmod -R 755 /var/www
+function Apache2_Setup() {
+    if [ -f "/etc/apache2/apache2.conf" ]; then
+        # ${HTTP2_HOST_IP}
+        echo "ServerName 127.0.0.1" >>/etc/apache2/apache2.conf
+    fi
+    sudo apachectl configtest
+    systemctl reload apache2
 }
 
-function ssl_setup() {
-    if [ ! -f "/etc/ssl/certs/${PRIVATE_SSL}.crt" ]; then
+function mkcert_setup() {
+    # Extension : cert-file and key-file => *.pem
+    apt install libnss3-tools
+    curl -JLO "https://dl.filippo.io/mkcert/latest?for=linux/amd64"
+    chmod +x mkcert-v*-linux-amd64
+    cp mkcert-v*-linux-amd64 /usr/local/bin/mkcert
+    mkcert -install
+    a2enmod ssl
+    a2enmod headers
+    systemctl restart apache2
+}
+
+function openssl_setup() {
+    # Extension : cert-file => *.cert
+    # Extension : key-file => *.key
+    a2enmod ssl
+    # a2enmod rewrite
+    systemctl restart apache2
+    # systemctl restart apache2
+    # systemctl reload apache2
+    if [ ! -f "${AVNLEARN_SSL_CRT}" ]; then
         echo "Setting up SSL..."
         mkdir -p /etc/ssl/certs /etc/ssl/private
-        openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout "/etc/ssl/private/${PRIVATE_SSL}.key" -out "/etc/ssl/certs/${PRIVATE_SSL}.crt" -subj "/C=US/ST=State/L=City/O=Organization/OU=Unit/CN=*.local"
+        openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout "${AVNLEARN_SSL_KEY}" -out "${AVNLEARN_SSL_CRT}" -subj "/C=US/ST=State/L=City/O=Organization/OU=Unit/CN=*.local"
+        # openssl req -new -newkey rsa:2048 -nodes -out "/etc/ssl/certs/${PRIVATE_SSL}.csr" -keyout "/etc/ssl/private/${PRIVATE_SSL}.key" -subj "/C=IN/ST=example/L=example/O=Development/OU=developer/CN=Example"
+        # openssl req -new -newkey rsa:2048 -nodes -out "${AVNLEARN_SSL_CRT}" -keyout "${AVNLEARN_SSL_KEY}" -subj "/C=IN/ST=example/L=example/O=Development/OU=developer/CN=*.local"
+        chmod 600 "${AVNLEARN_SSL_KEY}"
+        chmod 644 "${AVNLEARN_SSL_CRT}"
+        cp "${AVNLEARN_SSL_CRT}" /usr/local/share/ca-certificates/
+        update-ca-certificates
     else
         echo "SSL certificate already exists."
     fi
@@ -95,8 +123,23 @@ function mysql_db() {
     echo "MySQL databases and user setup completed successfully."
 }
 
-Install
-SetPermissions
-# ssl_setup
-mysql_db
+function ftp_server() {
+    apt-get install -y vsftpd
+    systemctl start vsftpd
+    systemctl enable vsftpd
+    {
+        echo "local_enable=YES"
+        echo "write_enable=YES"
+        echo "chroot_local_user=YES"
+    } >>/etc/vsftpd.conf
+    systemctl restart vsftpd
+}
+
+# Install
+# SetPermissions
+mkcert_setup
+# certbot_setup
+Apache2_Setup
+# mysql_db
+# Database_Create "avnlearn"
 echo "Setup completed successfully."

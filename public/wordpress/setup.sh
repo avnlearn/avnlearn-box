@@ -2,12 +2,12 @@
 # shellcheck source=/dev/null
 source /vagrant/public/bootstrap.sh
 # Define the target directory
-TARGET_DIR="/var/www/wordpress"
+SITE_NAME="wordpress"
+TARGET_DIR="/var/www/${SITE_NAME}"
 
 function WP_CLI_Install() {
     if ! command -v wp &>/dev/null; then
-        curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
-        php wp-cli.phar --info
+        Web_Download_File "https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar" "wp-cli.phar"
         chmod +x wp-cli.phar
         mv wp-cli.phar /usr/local/bin/wp
         wp --info
@@ -30,7 +30,7 @@ function Install() {
 
     # Extract the downloaded package
     echo "Extracting $(dirname "$TARGET_DIR")..."
-    if ! tar -xvzf "$OutFile" -C "$(dirname "$TARGET_DIR")"; then
+    if ! tar -xzf "$OutFile" -C "$(dirname "$TARGET_DIR")"; then
         echo "Error: Failed to extract $OutFile. Exiting."
         return 1
     fi
@@ -40,8 +40,8 @@ function Install() {
 }
 
 function SetPermissions() {
-    Global_Permission "${TARGET_DIR}"
-    Global_Permission "${TARGET_DIR}/wp-content/uploads"
+    Global_Permission "${TARGET_DIR}" "user"
+    # Global_Permission "${TARGET_DIR}/wp-content/uploads" "user"
 }
 function ConfigureSettings() {
     echo "TODO : WordPress Setup"
@@ -54,23 +54,23 @@ function ConfigureSettings() {
         echo "Error: Failed to change directory to ${TARGET_DIR}. Exiting."
         return 1
     }
-    sudo wp config create --dbname="${WP_DB}" --dbuser="${WEB_USERNAME}" --dbpass="${WEB_PASSWD}" --dbhost="${WEB_HOSTNAME}" --allow-root --extra-php <<PHP
+    sudo wp config create --dbname="${SITE_NAME}" --dbuser="${WEB_USERNAME}" --dbpass="${WEB_PASSWD}" --dbhost="${WEB_HOSTNAME}" --allow-root --extra-php <<PHP
 define('WP_DEBUG', true); // Enable WP_DEBUG mode
 define('WP_DEBUG_LOG', true); // Enable error logging to wp-content/debug.log
 define('WP_DEBUG_DISPLAY', false); // Disable display of errors and warnings
 define('SCRIPT_DEBUG', true); // Use unminified versions of CSS and JS files
 define('WP_MEMORY_LIMIT', '256M'); // Increase memory limit
 define('AUTOMATIC_UPDATER_DISABLED', true); // Disable automatic updates
-define('WP_DEBUG_LOG', '$TARGET_DIR/debug.log');
+// define('WP_DEBUG_LOG', '$TARGET_DIR/debug.log');
 PHP
-    sudo wp core install --url="wordpress.local" --title="AvN Learn" --admin_user="${WEB_USERNAME}" --admin_password="${WEB_PASSWD}" --admin_email="${WEB_EMAIL_ID}" --allow-root
+    sudo wp core install --url="$SITE_NAME.local" --title="AvN Learn" --admin_user="${WEB_USERNAME}" --admin_password="${WEB_PASSWD}" --admin_email="${WEB_EMAIL_ID}" --allow-root
 }
 
 WP_CLI_Install
 Install
-Database_Create "$TARGET_DIR"
+Database_Create "$SITE_NAME"
 SetPermissions
-ApacheConfigure "$TARGET_DIR" # "ssl"
+ApacheConfigure "$TARGET_DIR" "$SITE_NAME" # "ssl"
 ConfigureSettings
 
 unset TARGET_DIR

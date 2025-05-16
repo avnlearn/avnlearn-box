@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # shellcheck source=/dev/null
 source /vagrant/public/bootstrap.sh
-# Define the target directory
-TARGET_DIR="/var/www/processwire"
+SITE_NAME="processwire"
+TARGET_DIR="/var/www/${SITE_NAME}"
 
 function Install() {
     echo "Starting ProcessWire installation..."
@@ -23,8 +23,9 @@ function Install() {
 }
 
 function SetPermissions() {
-    Global_Permission "${TARGET_DIR}"
-    Global_Permission "${TARGET_DIR}/assets"
+    Global_Permission "${TARGET_DIR}" "user"
+    [[ ! -d "${TARGET_DIR}/assets" ]] && mkdir -p "${TARGET_DIR}/assets"
+    Global_Permission "${TARGET_DIR}/assets" "user"
 }
 
 function ConfigureSettings() {
@@ -40,12 +41,13 @@ function ConfigureSettings() {
     }
 
     # Create a configuration file for ProcessWire
-    cat <<EOL >config.php
+    cat <<EOL >"${TARGET_DIR}/site-blank/config.php"
 <?php
 \$config->dbHost = '${WEB_HOSTNAME}';
-\$config->dbName = '${PROCESSWIRE_DB}';
+\$config->dbName = '${SITE_NAME}';
 \$config->dbUser = '${WEB_USERNAME}';
 \$config->dbPass = '${WEB_PASSWD}';
+\$config->httpHosts = array('http://${SITE_NAME}.local', "http://www.${SITE_NAME}.local");
 \$config->debug = true; // Enable debug mode
 EOL
 
@@ -54,7 +56,7 @@ EOL
 
 Install
 SetPermissions
-Database_Create "$TARGET_DIR"
+Database_Create "$SITE_NAME"
 ConfigureSettings
-ApacheConfigure "$TARGET_DIR" # "ssl"
+ApacheConfigure "$TARGET_DIR" "$SITE_NAME" # "ssl"
 unset TARGET_DIR

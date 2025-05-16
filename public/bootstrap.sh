@@ -1,31 +1,19 @@
 #!/usr/bin/env bash
 export WEB_HOSTNAME="localhost"
-# export WEB_HOST_IP="192.168.56.10"
-# export WEB_HOST_IP="127.0.0.1"
-export WEB_HOST_IP="$WEB_HOSTNAME"
-export HTTP2_HOST_IP="localhost"
+export HTTP2_HOST_IP="$WEB_HOSTNAME"
 export WEB_EMAIL_ID="mr.raj3010@gmail.com"
 export WEB_USERNAME="admin"
 export WEB_PASSWD="admin@123"
 export WIKI_PASSWD="adminwiki@123"
-export PRIVATE_SSL="avnlearn"
-export WP_DB="wordpress"
-export DRUPAL_DB="drupal"
-export JOOMLA_DB="joomla"
-export MAGENTO_DB="magento"
-export PROCESSWIRE_DB="processwire"
-export PYROCMS_DB="pyrocms"
-export BLUDIT_DB="bludit"
-export MOODLE_DB="moodle"
-export WIKI_DB="mediawiki"
-export LARAVEL_DB="laravel"
-export CAKEPHP_DB="cakephp"
-export FUELPHP_DB="fuelphp"
-export SYMFONY_DB="symfony"
-export CODEIGNITER_DB="codeigniter"
-export AVNLEARN_DB="avnlearn"
-export PHP_DB="php"
-
+export AVNLEARN_SSL_CRT="/etc/ssl/certs/avnlearn.pem"
+export AVNLEARN_SSL_KEY="/etc/ssl/private/avnlearn.pem"
+# Define color codes
+export AVN_RED='\033[0;31m'
+export AVN_GREEN='\033[0;32m'
+export AVN_YELLOW='\033[1;33m'
+export AVN_BLUE='\033[0;34m'
+export AVN_BOLD='\033[1m'
+export AVN_NC='\033[0m' # No Color
 export COMPOSER_ALLOW_SUPERUSER=1
 
 function Composer_Install() {
@@ -34,6 +22,7 @@ function Composer_Install() {
     echo "Install " "${Install_Package[@]}"
     composer global require "${Install_Package[@]}"
     echo "==========END Composer=========="
+    composer global config bin-dir --absolute
 }
 
 function Database_Create() {
@@ -68,137 +57,124 @@ function Database_Create() {
 }
 
 function ApacheConfigure() {
-    local DIR_NAME
+    local DIR_NAME="$1"
     local SITE_NAME="$2"
-    local CONFIG_TYPE="$3" # Default to 'http' if not provided
-    DIR_NAME="$1"
-    SITE_NAME="$2"
-    CONFIG_TYPE="$3"
-    # CONFIG_NAME="$(basename "$DIR_NAME")"
+    local APACHE_LOG_DIR="\${APACHE_LOG_DIR}"
+    local DOMAIN_NAME="${SITE_NAME}.local"
+    local SITE_CONFIG_FILE="/etc/apache2/sites-available/${DOMAIN_NAME}.conf"
+    local SSL_CONFIG_FILE="/etc/apache2/sites-available/${DOMAIN_NAME}-ssl.conf"
+    local SSL_KEY="/etc/ssl/private/${SITE_NAME}.pem"
+    local SSL_CERTS="/etc/ssl/certs/${SITE_NAME}.pem"
+
     echo "==========START Apache2=========="
-    # Check if DIR_NAME is provided
-    if [[ -z "$DIR_NAME" ]]; then
-        echo "Error: Directory name is required."
+    if [[ -z "$DIR_NAME" || -z "$SITE_NAME" || ! -d "$DIR_NAME" ]]; then
+        echo "Error: Valid directory name and site name are required."
         return 1
     fi
 
-    # Validate DIR_NAME (only allow valid directory paths)
-    if [[ ! -d "$DIR_NAME" ]]; then
-        echo "Error: The provided path '$DIR_NAME' is not a valid directory."
-        return 1
-    fi
-
-    # Define the configuration file path
-    local SITE_CONFIG_FILE="/etc/apache2/sites-available/${SITE_NAME}.local.conf"
-
-    # Check if the configuration file already exists
     if [[ -f "$SITE_CONFIG_FILE" ]]; then
-        echo "Error: Apache configuration file $SITE_CONFIG_FILE already exists."
+        echo "Error: Configuration file already exists."
         return 1
     fi
-
-    # Create the Apache configuration file for HTTP
-    bash -c "cat <<EOF > $SITE_CONFIG_FILE
+    echo "Create $SITE_CONFIG_FILE"
+    if [ ! -f "/vagrant/public/${SITE_NAME}/apache2.conf" ]; then
+        echo "Generator $SITE_CONFIG_FILE"
+        cat <<EOF >"$SITE_CONFIG_FILE"
 <VirtualHost *:80>
     ServerAdmin ${SITE_NAME}@avnlearn.com
-    ServerName ${SITE_NAME}.local
+    ServerName ${DOMAIN_NAME}
     DocumentRoot $DIR_NAME
-    ServerAlias www.${SITE_NAME}.local
+    ServerAlias www.${DOMAIN_NAME}
     <Directory $DIR_NAME>
         AllowOverride All
+        # Options Indexes FollowSymLinks
         Options -Indexes
         Require all granted
     </Directory>
-    ErrorLog \${APACHE_LOG_DIR}/${SITE_NAME}.local_error.log
-    CustomLog \${APACHE_LOG_DIR}/${SITE_NAME}.local_access.log combined
+    ErrorLog ${APACHE_LOG_DIR}/${DOMAIN_NAME}_error.log
+    CustomLog ${APACHE_LOG_DIR}/${DOMAIN_NAME}_access.log combined
 </VirtualHost>
-EOF" || {
-        echo "Error: Failed to create Apache configuration file."
-        return 1
-    }
-
-    # Enable the new site
-    a2ensite "${SITE_NAME}.local" || {
-        echo "Error: Failed to enable site ${SITE_NAME}.local.conf."
-        return 1
-    }
-
-    # Add entries to /etc/hosts
-    local HOSTS_FILE="/etc/hosts"
-    if ! grep -q "${SITE_NAME}.local" "$HOSTS_FILE"; then
-        echo "${WEB_HOST_IP} ${SITE_NAME}.local" >>"$HOSTS_FILE"
-        echo "${WEB_HOST_IP} www.${SITE_NAME}.local" >>"$HOSTS_FILE"
-        echo "Added ${SITE_NAME}.local to /etc/hosts."
+EOF
     else
-        echo "Entry for ${SITE_NAME}.local already exists in /etc/hosts."
+        echo "Copying /vagrant/public/${SITE_NAME}/apache2.conf => $SITE_CONFIG_FILE"
+        cp "/vagrant/public/${SITE_NAME}/apache2.conf" "$SITE_CONFIG_FILE"
+    fi
+    if [ -f "$SITE_CONFIG_FILE" ]; then
+        a2ensite "${DOMAIN_NAME}"
+                    cat <<EOF >>/home/vagrant/.bashrc
+echo -e "${AVN_BOLD}${AVN_RED}[✓] : ${AVN_GREEN}http://${DOMAIN_NAME}${AVN_NC}"
+EOF
+        apachectl configtest
+        systemctl reload apache2
+        echo "Apache configuration for http://${DOMAIN_NAME} set up successfully."
+    else
+        echo "Appache configuration is not exists!"
     fi
 
-    # Restart Apache to apply changes
-    systemctl reload apache2 || {
-        echo "Error: Failed to restart Apache."
-        return 1
-    }
-
-    echo "Apache configuration for ${SITE_NAME} has been set up successfully."
-
-    # Additional configuration setup based on CONFIG_TYPE
-    if [[ "$CONFIG_TYPE" == "ssl" ]]; then
-        echo ##########START ssl##########"
-        # Create SSL configuration if CONFIG_TYPE is 'ssl'
-        local SSL_CONFIG_FILE="/etc/apache2/sites-available/${SITE_NAME}.local-ssl.conf"
+    # SSL Configuration
+    if [ ! -f "${AVNLEARN_SSL_CRT}" ]; then
+        mkcert -key-file "${SSL_KEY}" -cert-file "${SSL_CERTS}" "${DOMAIN_NAME}"
+        sudo chown www-data:www-data "${SSL_KEY}"
+        sudo chown www-data:www-data "${SSL_CERTS}"
+        sudo chmod 644 "${SSL_CERTS}"
+        sudo chmod 600 "${SSL_KEY}"
+    fi
+    if [[ -f "${SSL_KEY}" && -f "${SSL_CERTS}" ]]; then
+        echo "##########START SSL##########"
         if [[ -f "$SSL_CONFIG_FILE" ]]; then
-            echo "Error: SSL configuration file $SSL_CONFIG_FILE already exists."
+            echo "Error: SSL configuration file already exists."
             return 1
         fi
-
-        bash -c "cat <<EOF > $SSL_CONFIG_FILE
+        echo "Create $SSL_CONFIG_FILE"
+        if [ ! -f "/vagrant/public/${SITE_NAME}/apache2-ssl.conf" ]; then
+            echo "Generator $SSL_CONFIG_FILE"
+            cat <<EOF >"$SSL_CONFIG_FILE"
 <IfModule mod_ssl.c>
-    <VirtualHost *:80>
-        ServerAdmin ${SITE_NAME}@avnlearn.com
-        ServerName ${SITE_NAME}.local
-        ServerAlias www.${SITE_NAME}.local
-        Redirect permanent / https://${SITE_NAME}.local/
-    </VirtualHost>
+    # <VirtualHost *:80>
+    #     Redirect permanent / https://${DOMAIN_NAME}/
+    # </VirtualHost>
     <VirtualHost *:443>
         ServerAdmin ${SITE_NAME}@avnlearn.com
-        ServerName ${SITE_NAME}.local
+        ServerName ${DOMAIN_NAME}
         DocumentRoot $DIR_NAME
-        ServerAlias www.${SITE_NAME}.local
-
-        ErrorLog \${APACHE_LOG_DIR}/${SITE_NAME}.local_ssl_error.log
-        CustomLog \${APACHE_LOG_DIR}/${SITE_NAME}.local_ssl_access.log combined
-
+        ServerAlias www.${DOMAIN_NAME}
         SSLEngine on
-        SSLCertificateFile /etc/ssl/certs/${PRIVATE_SSL}.crt
-        SSLCertificateKeyFile /etc/ssl/private/${PRIVATE_SSL}.key
-
-        <FilesMatch \"\\.(cgi|shtml|phtml|php)\$\">
-            SSLOptions +StdEnvVars
-        </FilesMatch>
-        <Directory /usr/lib/cgi-bin>
-            SSLOptions +StdEnvVars
+        SSLCertificateFile ${SSL_CERTS}
+        SSLCertificateKeyFile ${SSL_KEY}
+        <Directory $DIR_NAME>
+            AllowOverride All
+            # Options Indexes FollowSymLinks
+            Options -Indexes
+            Require all granted
         </Directory>
+        ErrorLog ${APACHE_LOG_DIR}/${DOMAIN_NAME}_ssl_error.log
+        CustomLog ${APACHE_LOG_DIR}/${DOMAIN_NAME}_ssl_access.log combined
+        # Security Headers
+        Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains" env=HTTPS
+        Header always set X-Content-Type-Options "nosniff"
+        Header always set X-XSS-Protection "1; mode=block"
+        Header always set X-Frame-Options "DENY"
+        Header always set Content-Security-Policy "default-src 'self';"
     </VirtualHost>
 </IfModule>
-EOF" || {
-            echo "Error: Failed to create SSL Apache configuration file."
-            return 1
-        }
+EOF
+        else
+            echo "Copying /vagrant/public/${SITE_NAME}/apache2-ssl.conf => $SSL_CONFIG_FILE"
+            cp -f "/vagrant/public/${SITE_NAME}/apache2-ssl.conf" "$SSL_CONFIG_FILE"
 
-        # Enable the SSL site
-        a2ensite "${SITE_NAME}.local-ssl" || {
-            echo "Error: Failed to enable SSL site ${SITE_NAME}.local-ssl."
-            return 1
-        }
-
-        # Restart Apache to apply changes
-        systemctl reload apache2 || {
-            echo "Error: Failed to reload Apache."
-            return 1
-        }
-        # systemctl reload apache2
-        echo "SSL configuration for ${SITE_NAME} has been set up successfully."
-        echo ##########END ssl##########"
+        fi
+        if [ -f "$SSL_CONFIG_FILE" ]; then
+            a2ensite "${DOMAIN_NAME}-ssl"
+            cat <<EOF >>/home/vagrant/.bashrc
+echo -e "${AVN_BOLD}${AVN_RED}[✓] : ${AVN_YELLOW}https://${DOMAIN_NAME}${AVN_NC}"
+EOF
+            apachectl configtest
+            systemctl reload apache2
+            echo "SSL configuration for https://${DOMAIN_NAME} set up successfully."
+        else
+            echo "Appache configuration SSL is not exists!"
+        fi
+        echo "##########END SSL##########"
     fi
     echo "==========END Apache2=========="
 }
@@ -232,7 +208,7 @@ function Generate_Index_File() {
 EOF
 
     echo "Index file created successfully at '$INDEX_PATH'."
-    chown -R "$USER":"$USER" "$DIR_NAME"
+    Global_Permission "$DIR_NAME" "user"
     echo "==========END Index.html=========="
 }
 
@@ -240,17 +216,25 @@ function Web_Download_File() {
     local URI="$1"
     local OutFile="$2"
     local Outdir
+    local LogFile="${OutFile}.log"
     Outdir="$(dirname "${OutFile}")"
+
     echo "==========START Download=========="
+
     # Check if the target directory exists
     if [ ! -d "$Outdir" ]; then
         echo "Error: $Outdir does not exist. Exiting."
         return 1
     fi
+
     echo "Starting download of ${OutFile}..."
-    # Download the file
     echo "Downloading ${OutFile} from ${URI}..."
-    if ! wget -q --show-progress "${URI}" -O "${OutFile}"; then
+
+    # Download the file
+    # if ! wget -q --show-progress "${URI}" -O "${OutFile}"; then
+
+    if ! wget -q "${URI}" -O "${OutFile}"; then
+        # if ! curl -v "${URI}" -o "${OutFile}" >"${LogFile}" 2>&1; then
         echo "Error: Failed to download ${OutFile}. Exiting."
         return 1
     fi
@@ -262,18 +246,24 @@ function Web_Download_File() {
 
 function Global_Permission() {
     local DIR_NAME="$1"
+    local USER_PERMISSION="$2"
+    local USER="www-data"
+    local GROUP="www-data"
+
     echo "==========START Permission=========="
-    if [[ -d "$DIR_NAME" ]]; then
-        chown -R www-data:www-data "$DIR_NAME" &&
-            find "$DIR_NAME" -type d -exec chmod 755 {} \; &&
-            find "$DIR_NAME" -type f -exec chmod 644 {} \; &&
-            echo "Permissions set for directory."
-    elif [[ -f "$DIR_NAME" ]]; then
-        chown www-data:www-data "$DIR_NAME" && chmod 644 "$DIR_NAME" &&
-            echo "Permissions set for file."
-    else
+
+    if [[ ! -e "$DIR_NAME" ]]; then
         echo "$DIR_NAME does not exist." >&2
         return 1
     fi
+
+    if [[ "$USER_PERMISSION" == "user" ]]; then
+        chown -R "vagrant:vagrant" "$DIR_NAME"
+    else
+        chown -R "$USER:$GROUP" "$DIR_NAME"
+        find "$DIR_NAME" -type d -exec chmod 755 {} \; -o -type f -exec chmod 644 {} \;
+    fi
+
+    echo "Permissions set for $DIR_NAME."
     echo "==========END Permission=========="
 }

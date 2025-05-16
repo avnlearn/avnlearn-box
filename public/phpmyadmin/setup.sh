@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # shellcheck source=/dev/null
 source /vagrant/public/bootstrap.sh
-
+SITE_NAME="phpmyadmin"
+TARGET_DIR="/usr/share/phpmyadmin"
 function Install() {
     echo "Install : phpMyAdmin"
     export DEBIAN_FRONTEND="noninteractive"
@@ -24,8 +25,5 @@ function apache2_conf() {
 }
 
 Install
-apache2_conf
-
-# Restart Apache to apply changes
-echo "Restarting Apache..."
-# sudo systemctl restart apache2
+# apache2_conf
+ApacheConfigure "$TARGET_DIR" "$SITE_NAME" # "ssl"
