@@ -101,7 +101,7 @@ EOF
     fi
     if [ -f "$SITE_CONFIG_FILE" ]; then
         a2ensite "${DOMAIN_NAME}"
-                    cat <<EOF >>/home/vagrant/.bashrc
+        cat <<EOF >>/home/vagrant/.bashrc
 echo -e "${AVN_BOLD}${AVN_RED}[✓] : ${AVN_GREEN}http://${DOMAIN_NAME}${AVN_NC}"
 EOF
         apachectl configtest
@@ -112,7 +112,7 @@ EOF
     fi
 
     # SSL Configuration
-    if [ ! -f "${AVNLEARN_SSL_CRT}" ]; then
+    if [ ! -f "${SSL_CERTS}" ]; then
         mkcert -key-file "${SSL_KEY}" -cert-file "${SSL_CERTS}" "${DOMAIN_NAME}"
         sudo chown www-data:www-data "${SSL_KEY}"
         sudo chown www-data:www-data "${SSL_CERTS}"
@@ -216,7 +216,6 @@ function Web_Download_File() {
     local URI="$1"
     local OutFile="$2"
     local Outdir
-    local LogFile="${OutFile}.log"
     Outdir="$(dirname "${OutFile}")"
 
     echo "==========START Download=========="
@@ -247,8 +246,6 @@ function Web_Download_File() {
 function Global_Permission() {
     local DIR_NAME="$1"
     local USER_PERMISSION="$2"
-    local USER="www-data"
-    local GROUP="www-data"
 
     echo "==========START Permission=========="
 
@@ -260,7 +257,7 @@ function Global_Permission() {
     if [[ "$USER_PERMISSION" == "user" ]]; then
         chown -R "vagrant:vagrant" "$DIR_NAME"
     else
-        chown -R "$USER:$GROUP" "$DIR_NAME"
+        chown -R "www-data:www-data" "$DIR_NAME"
         find "$DIR_NAME" -type d -exec chmod 755 {} \; -o -type f -exec chmod 644 {} \;
     fi
 

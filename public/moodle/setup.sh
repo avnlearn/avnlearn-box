@@ -29,7 +29,7 @@ function SetPermissions() {
     [[ ! -d "${TARGET_DIR}/moodledata" ]] && mkdir -p "${TARGET_DIR}/moodledata"
     Global_Permission "${TARGET_DIR}/moodledata" "user"
 }
-function ConfigureSettings() {
+function AutomaticsConfiguration() {
     echo "Configuring Moodle settings..."
     # Check if the target directory exists
     if [ ! -d "${TARGET_DIR}" ]; then
@@ -43,23 +43,27 @@ function ConfigureSettings() {
 
     # Create the config.php file
     cat <<PHP >config.php
-<?php
-// Moodle configuration file
+<?php  // Moodle configuration file
 unset(\$CFG);
 global \$CFG;
 \$CFG = new stdClass();
-\$CFG->dbtype    = 'mysqli'; // Database type
-\$CFG->dblibrary = 'native'; // Database library
-\$CFG->dbhost    = '${WEB_HOSTNAME}'; // Database host
-\$CFG->dbname    = '${SITE_NAME}'; // Database name
-\$CFG->dbuser    = '${WEB_USERNAME}'; // Database user
-\$CFG->dbpass    = '${WEB_PASSWD}'; // Database password
-\$CFG->prefix    = 'mdl_'; // Database table prefix
-\$CFG->wwwroot   = 'http://${SITE_NAME}.local'; // Moodle URL
-\$CFG->dataroot  = '${TARGET_DIR}/moodledata'; // Moodle data directory
-\$CFG->admin     = '${WEB_USERNAME}'; // Admin user
-\$CFG->directorypermissions = 02775; // Directory permissions
-\$CFG->passwordsaltmain = '$(openssl rand -hex 12)'; // Password salt
+\$CFG->dbtype    = 'mysqli';
+\$CFG->dblibrary = 'native';
+\$CFG->dbhost    = 'localhost';
+\$CFG->dbname    = 'moodle';
+\$CFG->dbuser    = 'admin';
+\$CFG->dbpass    = 'admin@123';
+\$CFG->prefix    = 'mdl_';
+\$CFG->dboptions = array (
+  'dbpersist' => 0,
+  'dbport' => 3306,
+  'dbsocket' => '/var/run/mysqld/mysqld.sock',
+  'dbcollation' => 'utf8mb4_0900_ai_ci',
+);
+\$CFG->wwwroot   = 'https://moodle.local';
+\$CFG->dataroot  = '/var/www/moodledata';
+\$CFG->admin     = 'admin';
+\$CFG->directorypermissions = 0777;
 require_once(__DIR__ . '/lib/setup.php');
 PHP
 }
