@@ -135,11 +135,9 @@ function ftp_server() {
     systemctl restart vsftpd
 }
 
-# Install
-# SetPermissions
+Install
 mkcert_setup
-# certbot_setup
 Apache2_Setup
-# mysql_db
-# Database_Create "avnlearn"
+mysql_db
+ftp_server
 echo "Setup completed successfully."
