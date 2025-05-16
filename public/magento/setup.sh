@@ -46,13 +46,6 @@ function SetPermissions() {
     echo "Magento installation completed successfully."
 }
 
-function InstallComposer() {
-    echo "Installing Composer..."
-    if ! command -v composer &>/dev/null; then
-        apt install -y composer
-    fi
-}
-
 function ConfigureSettings() {
     echo "Configuring Magento settings..."
     cd "${TARGET_DIR}" || {
@@ -65,7 +58,6 @@ function ConfigureSettings() {
     # Magento_OpenSearch
     # Magento_Elasticsearch
     # Magento_Elasticsearch8
-
     php bin/magento setup:install --disable-modules=Magento_Elasticsearch8,Magento_Elasticsearch,Magento_OpenSearch \
         --base-url="http://${SITE_NAME}.local" \
         --db-host="${WEB_HOSTNAME}" \

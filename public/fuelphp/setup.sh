@@ -11,7 +11,9 @@ function Install() {
 }
 
 
+Install
 Generate_Index_File "${TARGET_DIR}" "$SITE_NAME"
+
 # Global_Permission "${TARGET_DIR}"
 Database_Create "$SITE_NAME"
 ApacheConfigure "$TARGET_DIR" "$SITE_NAME" # "ssl"

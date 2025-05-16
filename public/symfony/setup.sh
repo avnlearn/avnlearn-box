@@ -10,6 +10,7 @@ function Install() {
     sudo apt install symfony-cli
 
 }
+Install
 Generate_Index_File "${TARGET_DIR}" "$SITE_NAME"
 # Global_Permission "${TARGET_DIR}"
 Database_Create "$SITE_NAME"

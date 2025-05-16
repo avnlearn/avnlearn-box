@@ -46,6 +46,8 @@ function Install() {
         libicu-dev
         libidn2-0-dev
         irqbalance
+        vsftpd
+        libnss3-tools
     )
     echo "Install Apache2 :" "${PACKAGES[@]}"
     apt update && apt upgrade
@@ -58,6 +60,8 @@ function Install() {
 }
 
 function Apache2_Setup() {
+    a2enmod rewrite
+    systemctl restart apache2
     if [ -f "/etc/apache2/apache2.conf" ]; then
         # ${HTTP2_HOST_IP}
         echo "ServerName 127.0.0.1" >>/etc/apache2/apache2.conf
@@ -68,7 +72,6 @@ function Apache2_Setup() {
 
 function mkcert_setup() {
     # Extension : cert-file and key-file => *.pem
-    apt install libnss3-tools
     curl -JLO "https://dl.filippo.io/mkcert/latest?for=linux/amd64"
     chmod +x mkcert-v*-linux-amd64
     cp mkcert-v*-linux-amd64 /usr/local/bin/mkcert
@@ -82,8 +85,6 @@ function openssl_setup() {
     # Extension : cert-file => *.cert
     # Extension : key-file => *.key
     a2enmod ssl
-    # a2enmod rewrite
-    systemctl restart apache2
     # systemctl restart apache2
     # systemctl reload apache2
     if [ ! -f "${AVNLEARN_SSL_CRT}" ]; then
@@ -124,7 +125,6 @@ function mysql_db() {
 }
 
 function ftp_server() {
-    apt-get install -y vsftpd
     systemctl start vsftpd
     systemctl enable vsftpd
     {
