@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # shellcheck source=/dev/null
-source /vagrant/public/bootstrap.sh
+source /vagrant/public/START.sh
 SITE_NAME="moodle"
 TARGET_DIR="/var/www/${SITE_NAME}"
-
+MOODLEDATA="/var/www/moodledata"
 function Install() {
     local URI="https://download.moodle.org/download.php/direct/stable500/moodle-latest-500.zip"
     OutFile="$(basename "$TARGET_DIR").zip"
@@ -26,10 +26,10 @@ function Install() {
 function SetPermissions() {
     # Set ownership and permissions for the Moodle directory
     Global_Permission "${TARGET_DIR}" "user"
-    [[ ! -d "${TARGET_DIR}/moodledata" ]] && mkdir -p "${TARGET_DIR}/moodledata"
-    Global_Permission "${TARGET_DIR}/moodledata" "user"
+    [[ ! -d "${MOODLEDATA}" ]] && mkdir -p "${MOODLEDATA}"
+    Global_Permission "${MOODLEDATA}"
 }
-function AutomaticsConfiguration() {
+function ConfigureSettings() {
     echo "Configuring Moodle settings..."
     # Check if the target directory exists
     if [ ! -d "${TARGET_DIR}" ]; then
@@ -47,7 +47,7 @@ function AutomaticsConfiguration() {
 unset(\$CFG);
 global \$CFG;
 \$CFG = new stdClass();
-\$CFG->dbtype    = 'mysqli';
+\$CFG->dbtype    = 'mariadb';
 \$CFG->dblibrary = 'native';
 \$CFG->dbhost    = 'localhost';
 \$CFG->dbname    = 'moodle';
@@ -56,12 +56,12 @@ global \$CFG;
 \$CFG->prefix    = 'mdl_';
 \$CFG->dboptions = array (
   'dbpersist' => 0,
-  'dbport' => 3306,
-  'dbsocket' => '/var/run/mysqld/mysqld.sock',
-  'dbcollation' => 'utf8mb4_0900_ai_ci',
+  'dbport' => '',
+  'dbsocket' => '',
+  'dbcollation' => 'utf8mb4_general_ci',
 );
-\$CFG->wwwroot   = 'https://moodle.local';
-\$CFG->dataroot  = '/var/www/moodledata';
+\$CFG->wwwroot   = 'http://moodle.local';
+\$CFG->dataroot  = "${MOODLEDATA}";
 \$CFG->admin     = 'admin';
 \$CFG->directorypermissions = 0777;
 require_once(__DIR__ . '/lib/setup.php');
@@ -69,8 +69,8 @@ PHP
 }
 
 Install
-SetPermissions
 Database_Create "$SITE_NAME"
 ConfigureSettings
+SetPermissions
 ApacheConfigure "$TARGET_DIR" "$SITE_NAME" # "ssl"
 unset TARGET_DIR

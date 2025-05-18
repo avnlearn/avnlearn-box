@@ -1,266 +1,187 @@
 #!/usr/bin/env bash
-export WEB_HOSTNAME="localhost"
-export HTTP2_HOST_IP="$WEB_HOSTNAME"
-export WEB_EMAIL_ID="mr.raj3010@gmail.com"
-export WEB_USERNAME="admin"
-export WEB_PASSWD="admin@123"
-export WIKI_PASSWD="adminwiki@123"
-export AVNLEARN_SSL_CRT="/etc/ssl/certs/avnlearn.pem"
-export AVNLEARN_SSL_KEY="/etc/ssl/private/avnlearn.pem"
-# Define color codes
-export AVN_RED='\033[0;31m'
-export AVN_GREEN='\033[0;32m'
-export AVN_YELLOW='\033[1;33m'
-export AVN_BLUE='\033[0;34m'
-export AVN_BOLD='\033[1m'
-export AVN_NC='\033[0m' # No Color
-export COMPOSER_ALLOW_SUPERUSER=1
 
-function Composer_Install() {
-    local Install_Package=("$@")
-    echo "==========START Composer=========="
-    echo "Install " "${Install_Package[@]}"
-    composer global require "${Install_Package[@]}"
-    echo "==========END Composer=========="
-    composer global config bin-dir --absolute
+# shellcheck source=/dev/null
+source /vagrant/public/START.sh
+
+function Install() {
+    echo -e "${AVN_YELLOW}==========START Install Setup==========${AVN_NC}"
+    PACKAGES=(
+        build-essential
+        bash-completion
+        apache2
+        php
+        libapache2-mod-php
+        vsftpd
+        git
+        php-bcmath
+        php-intl
+        php-common
+        php-http
+        php-oauth
+        php-sqlite3
+        php-mysql
+        php-cli
+        php-pcov
+        php-curl
+        php-xml
+        php-mbstring
+        php-zip
+        php-gd
+        php-intl
+        php-soap
+        php-json
+        php-imagick
+        php-xdebug
+        php-http
+        php-raphf
+        php-dev
+        php-pear
+        composer
+        unzip
+        ghostscript
+        openssl
+        # mysql-server
+        mariadb-server
+        mkcert
+        sendmail
+    )
+    echo "Install Apache2 :" "${PACKAGES[@]}"
+    apt update && apt upgrade
+    apt install -y software-properties-common
+    add-apt-repository ppa:ondrej/php
+    apt update
+    apt install -y "${PACKAGES[@]}"
+    apt autoremove && apt autoclean
+    sudo systemctl start sendmail
+    sudo systemctl enable sendmail
+    composer update
+    echo -e "${AVN_YELLOW}==========END Install Setup==========${AVN_NC}"
 }
+function setup_composer() {
+    echo -e "${AVN_YELLOW}==========START Composer Setup==========${AVN_NC}"
+    if ! command -v composer &>/dev/null; then
+        EXPECTED_CHECKSUM="$(php -r 'copy("https://composer.github.io/installer.sig", "php://stdout");')"
+        php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');"
+        ACTUAL_CHECKSUM="$(php -r "echo hash_file('sha384', 'composer-setup.php');")"
 
-function Database_Create() {
-    echo "==========START Database=========="
-    local DIR_NAME
-    local DATABASE_NAME
-    DIR_NAME="$1"
-    DATABASE_NAME="$(basename "$DIR_NAME")"
-
-    # Check if the database name is provided
-    if [[ -z "$DATABASE_NAME" ]]; then
-        echo "Error: No database name provided."
-        return 1
-    fi
-
-    # Validate the database name (optional: you can customize this regex)
-    if ! [[ "$DATABASE_NAME" =~ ^[a-zA-Z0-9_]+$ ]]; then
-        echo "Error: Invalid database name. Only alphanumeric characters and underscores are allowed."
-        return 1
-    fi
-
-    echo "Creating database: ${DATABASE_NAME}"
-
-    # Attempt to create the database and capture the output
-    if mysql -u root -e "CREATE DATABASE IF NOT EXISTS \`${DATABASE_NAME}\`;" 2>/dev/null; then
-        echo "Database '${DATABASE_NAME}' created successfully."
-    else
-        echo "Error: Failed to create database '${DATABASE_NAME}'."
-        return 1
-    fi
-    echo "==========END Database=========="
-}
-
-function ApacheConfigure() {
-    local DIR_NAME="$1"
-    local SITE_NAME="$2"
-    local APACHE_LOG_DIR="\${APACHE_LOG_DIR}"
-    local DOMAIN_NAME="${SITE_NAME}.local"
-    local SITE_CONFIG_FILE="/etc/apache2/sites-available/${DOMAIN_NAME}.conf"
-    local SSL_CONFIG_FILE="/etc/apache2/sites-available/${DOMAIN_NAME}-ssl.conf"
-    local SSL_KEY="/etc/ssl/private/${SITE_NAME}.pem"
-    local SSL_CERTS="/etc/ssl/certs/${SITE_NAME}.pem"
-
-    echo "==========START Apache2=========="
-    if [[ -z "$DIR_NAME" || -z "$SITE_NAME" || ! -d "$DIR_NAME" ]]; then
-        echo "Error: Valid directory name and site name are required."
-        return 1
-    fi
-
-    if [[ -f "$SITE_CONFIG_FILE" ]]; then
-        echo "Error: Configuration file already exists."
-        return 1
-    fi
-    echo "Create $SITE_CONFIG_FILE"
-    if [ ! -f "/vagrant/public/${SITE_NAME}/apache2.conf" ]; then
-        echo "Generator $SITE_CONFIG_FILE"
-        cat <<EOF >"$SITE_CONFIG_FILE"
-<VirtualHost *:80>
-    ServerAdmin ${SITE_NAME}@avnlearn.com
-    ServerName ${DOMAIN_NAME}
-    DocumentRoot $DIR_NAME
-    ServerAlias www.${DOMAIN_NAME}
-    <Directory $DIR_NAME>
-        AllowOverride All
-        # Options Indexes FollowSymLinks
-        Options -Indexes
-        Require all granted
-    </Directory>
-    ErrorLog ${APACHE_LOG_DIR}/${DOMAIN_NAME}_error.log
-    CustomLog ${APACHE_LOG_DIR}/${DOMAIN_NAME}_access.log combined
-</VirtualHost>
-EOF
-    else
-        echo "Copying /vagrant/public/${SITE_NAME}/apache2.conf => $SITE_CONFIG_FILE"
-        cp "/vagrant/public/${SITE_NAME}/apache2.conf" "$SITE_CONFIG_FILE"
-    fi
-    if [ -f "$SITE_CONFIG_FILE" ]; then
-        a2ensite "${DOMAIN_NAME}"
-        cat <<EOF >>/home/vagrant/.bashrc
-echo -e "${AVN_BOLD}${AVN_RED}[✓] : ${AVN_GREEN}http://${DOMAIN_NAME}${AVN_NC}"
-EOF
-        apachectl configtest
-        systemctl reload apache2
-        echo "Apache configuration for http://${DOMAIN_NAME} set up successfully."
-    else
-        echo "Appache configuration is not exists!"
-    fi
-
-    # SSL Configuration
-    if [ ! -f "${SSL_CERTS}" ]; then
-        mkcert -key-file "${SSL_KEY}" -cert-file "${SSL_CERTS}" "${DOMAIN_NAME}"
-        sudo chown www-data:www-data "${SSL_KEY}"
-        sudo chown www-data:www-data "${SSL_CERTS}"
-        sudo chmod 644 "${SSL_CERTS}"
-        sudo chmod 600 "${SSL_KEY}"
-    fi
-    if [[ -f "${SSL_KEY}" && -f "${SSL_CERTS}" ]]; then
-        echo "##########START SSL##########"
-        if [[ -f "$SSL_CONFIG_FILE" ]]; then
-            echo "Error: SSL configuration file already exists."
-            return 1
+        if [ "$EXPECTED_CHECKSUM" != "$ACTUAL_CHECKSUM" ]; then
+            echo >&2 'ERROR: Invalid installer checksum'
+            rm composer-setup.php
+            exit 1
         fi
-        echo "Create $SSL_CONFIG_FILE"
-        if [ ! -f "/vagrant/public/${SITE_NAME}/apache2-ssl.conf" ]; then
-            echo "Generator $SSL_CONFIG_FILE"
-            cat <<EOF >"$SSL_CONFIG_FILE"
-<IfModule mod_ssl.c>
-    # <VirtualHost *:80>
-    #     Redirect permanent / https://${DOMAIN_NAME}/
-    # </VirtualHost>
-    <VirtualHost *:443>
-        ServerAdmin ${SITE_NAME}@avnlearn.com
-        ServerName ${DOMAIN_NAME}
-        DocumentRoot $DIR_NAME
-        ServerAlias www.${DOMAIN_NAME}
-        SSLEngine on
-        SSLCertificateFile ${SSL_CERTS}
-        SSLCertificateKeyFile ${SSL_KEY}
-        <Directory $DIR_NAME>
-            AllowOverride All
-            # Options Indexes FollowSymLinks
-            Options -Indexes
-            Require all granted
-        </Directory>
-        ErrorLog ${APACHE_LOG_DIR}/${DOMAIN_NAME}_ssl_error.log
-        CustomLog ${APACHE_LOG_DIR}/${DOMAIN_NAME}_ssl_access.log combined
-        # Security Headers
-        Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains" env=HTTPS
-        Header always set X-Content-Type-Options "nosniff"
-        Header always set X-XSS-Protection "1; mode=block"
-        Header always set X-Frame-Options "DENY"
-        Header always set Content-Security-Policy "default-src 'self';"
-    </VirtualHost>
-</IfModule>
-EOF
-        else
-            echo "Copying /vagrant/public/${SITE_NAME}/apache2-ssl.conf => $SSL_CONFIG_FILE"
-            cp -f "/vagrant/public/${SITE_NAME}/apache2-ssl.conf" "$SSL_CONFIG_FILE"
 
-        fi
-        if [ -f "$SSL_CONFIG_FILE" ]; then
-            a2ensite "${DOMAIN_NAME}-ssl"
-            cat <<EOF >>/home/vagrant/.bashrc
-echo -e "${AVN_BOLD}${AVN_RED}[✓] : ${AVN_YELLOW}https://${DOMAIN_NAME}${AVN_NC}"
-EOF
-            apachectl configtest
-            systemctl reload apache2
-            echo "SSL configuration for https://${DOMAIN_NAME} set up successfully."
-        else
-            echo "Appache configuration SSL is not exists!"
-        fi
-        echo "##########END SSL##########"
+        php composer-setup.php --quiet
+        chmod +x composer-setup.php
+        mv composer-setup.php /usr/bin/composer
     fi
-    echo "==========END Apache2=========="
+    composer completion >/etc/bash_completion.d/composer
+    chmod +x /etc/bash_completion.d/composer
+    echo -e "${AVN_YELLOW}==========END Composer Setup==========${AVN_NC}"
+}
+function apache2_Setup() {
+    echo -e "${AVN_YELLOW}==========START Apache2 Setup==========${AVN_NC}"
+    a2enmod rewrite
+    a2enmod ssl
+    a2enmod headers
+    systemctl restart apache2
+    if [ -f "/etc/apache2/apache2.conf" ]; then
+        # ${HTTP2_HOST_IP}
+        echo "ServerName 127.0.0.1" >>/etc/apache2/apache2.conf
+    fi
+    sudo apachectl configtest
+    systemctl reload apache2
+    echo -e "${AVN_YELLOW}==========END Apache2 Setup==========${AVN_NC}"
 }
 
-function Generate_Index_File() {
-    local DIR_NAME="$1"
-    local INDEX_PATH="$DIR_NAME/index.html"
-    local CONFIG_NAME="$2"
-    # CONFIG_NAME="$(basename "$DIR_NAME")"
-    echo "==========START Index.html=========="
-    mkdir -p "$DIR_NAME" || {
-        echo "Error: Failed to create directory '$DIR_NAME'."
-        return 1
-    }
-
-    cat <<EOF >"$INDEX_PATH"
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>${CONFIG_NAME}</title>
-</head>
-<body>
-    <h1>Welcome to ${CONFIG_NAME}</h1>
-    <p>A web framework or web application framework is a software framework that is designed to support the development of web applications including web services, web resources, and web APIs.</p>
-    <p>Web frameworks provide a standard way to build and deploy web applications on the World Wide Web.</p>
-    <p>Web frameworks aim to automate the overhead associated with common activities performed in web development.</p>
-</body>
-</html>
-EOF
-
-    echo "Index file created successfully at '$INDEX_PATH'."
-    Global_Permission "$DIR_NAME" "user"
-    echo "==========END Index.html=========="
-}
-
-function Web_Download_File() {
-    local URI="$1"
-    local OutFile="$2"
-    local Outdir
-    Outdir="$(dirname "${OutFile}")"
-
-    echo "==========START Download=========="
-
-    # Check if the target directory exists
-    if [ ! -d "$Outdir" ]; then
-        echo "Error: $Outdir does not exist. Exiting."
-        return 1
-    fi
-
-    echo "Starting download of ${OutFile}..."
-    echo "Downloading ${OutFile} from ${URI}..."
-
-    # Download the file
-    # if ! wget -q --show-progress "${URI}" -O "${OutFile}"; then
-
-    if ! wget -q "${URI}" -O "${OutFile}"; then
-        # if ! curl -v "${URI}" -o "${OutFile}" >"${LogFile}" 2>&1; then
-        echo "Error: Failed to download ${OutFile}. Exiting."
-        return 1
-    fi
-
-    echo "Download of ${OutFile} completed successfully."
-    echo "==========END Download=========="
-    return 0
-}
-
-function Global_Permission() {
-    local DIR_NAME="$1"
-    local USER_PERMISSION="$2"
-
-    echo "==========START Permission=========="
-
-    if [[ ! -e "$DIR_NAME" ]]; then
-        echo "$DIR_NAME does not exist." >&2
-        return 1
-    fi
-
-    if [[ "$USER_PERMISSION" == "user" ]]; then
-        chown -R "vagrant:vagrant" "$DIR_NAME"
+function openssl_setup() {
+    echo -e "${AVN_YELLOW}==========START OpenSSL Setup==========${AVN_NC}"
+    if [ ! -f "${AVNLEARN_SSL_CRT}" ]; then
+        echo "Setting up SSL..."
+        mkdir -p /etc/ssl/certs /etc/ssl/private
+        # openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout "${AVNLEARN_SSL_KEY}" -out "${AVNLEARN_SSL_CRT}" -config /vagrant/public/openssl.cnf
+        openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout "${AVNLEARN_SSL_KEY}" -out "${AVNLEARN_SSL_CRT}" -subj "/C=IN/ST=State/L=City/O=AvNLearn/OU=Unit/CN=*.local"
+        chmod 600 "${AVNLEARN_SSL_KEY}"
+        chmod 644 "${AVNLEARN_SSL_CRT}"
+        cp "${AVNLEARN_SSL_CRT}" /usr/local/share/ca-certificates/
+        update-ca-certificates
     else
-        chown -R "www-data:www-data" "$DIR_NAME"
-        find "$DIR_NAME" -type d -exec chmod 755 {} \; -o -type f -exec chmod 644 {} \;
+        echo "SSL certificate already exists."
+    fi
+    echo -e "${AVN_YELLOW}==========END OpenSSL Setup==========${AVN_NC}"
+}
+
+function database_setup() {
+    echo -e "${AVN_YELLOW}==========START Database Setup==========${AVN_NC}"
+    local COMMAND
+    for cmd in mysql mariadb; do
+        if command -v $cmd &>/dev/null; then
+            COMMAND=$cmd
+            break
+        fi
+    done
+
+    if [ -z "$COMMAND" ]; then
+        echo "MySQL/MariaDB command not found. Please install the MySQL client."
+        return 1
     fi
 
-    echo "Permissions set for $DIR_NAME."
-    echo "==========END Permission=========="
+    echo "Creating user: ${WEB_USERNAME}@${WEB_HOSTNAME}"
+    if ! $COMMAND -u root -e "CREATE USER IF NOT EXISTS '${WEB_USERNAME}'@'${WEB_HOSTNAME}' IDENTIFIED BY '${WEB_PASSWD}';"; then
+        echo "Failed to create user."
+        return 1
+    fi
+
+    echo "Granting privileges to user: ${WEB_USERNAME}@${WEB_HOSTNAME}"
+    if ! $COMMAND -u root -e "GRANT ALL PRIVILEGES ON *.* TO '${WEB_USERNAME}'@'${WEB_HOSTNAME}' WITH GRANT OPTION;"; then
+        echo "Failed to grant privileges."
+        return 1
+    fi
+
+    echo "Flushing privileges..."
+    if ! $COMMAND -u root -e "FLUSH PRIVILEGES;"; then
+        echo "Failed to flush privileges."
+        return 1
+    fi
+
+    echo "$COMMAND databases and user setup completed successfully."
+    echo -e "${AVN_YELLOW}==========END Database Setup==========${AVN_NC}"
 }
+
+function ftp_server_setup() {
+    systemctl start vsftpd
+    systemctl enable vsftpd
+    {
+        echo "local_enable=YES"
+        echo "write_enable=YES"
+        echo "chroot_local_user=YES"
+    } >>/etc/vsftpd.conf
+    systemctl restart vsftpd
+}
+
+function setup_bashrc() {
+    set_bashrc <<EOF
+if command -v composer >/dev/null 2>&1; then
+    echo ""
+    echo -e "${AVN_GREEN}${AVN_BOLD}[✓]${AVN_NC} : composer = $(composer global config bin-dir --absolute 2>/dev/null)"
+    export PATH="\$PATH:\$(composer global config bin-dir --absolute 2>/dev/null)"
+fi
+echo -e "${AVN_GREEN}${AVN_BOLD}TODO : SERVER Complete${AVN_NC}"
+echo -e "${AVN_BOLD}${AVN_BLUE}======================${AVN_NC}"
+echo -e "${AVN_BOLD}${YELLOW}Administrator${AVN_NC}"
+echo -e "${AVN_BOLD}${AVN_BLUE}User Information:${AVN_NC}"
+echo -e "\t${AVN_BOLD}1. ${AVN_YELLOW}Username : ${AVN_GREEN}$WEB_USERNAME${AVN_NC}"
+echo -e "\t${AVN_BOLD}2. ${AVN_RED}Password : ${AVN_GREEN}$WEB_PASSWD${AVN_NC}"
+echo -e "\t${AVN_BOLD}3. ${AVN_RED}Wiki Password : ${AVN_GREEN}$WIKI_PASSWD${AVN_NC}"
+echo -e "\t${AVN_BOLD}3. ${AVN_RED}Moodle Password : ${AVN_GREEN}$MOODLE_PASSWD${AVN_NC}"
+echo -e "${AVN_BOLD}${AVN_BLUE}======================${AVN_NC}"
+EOF
+}
+
+Install
+setup_composer
+openssl_setup
+apache2_Setup
+database_setup
+ftp_server_setup
+setup_bashrc
+echo "Setup completed successfully."

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # shellcheck source=/dev/null
-source /vagrant/public/bootstrap.sh
+source /vagrant/public/START.sh
 SITE_NAME="mediawiki"
 TARGET_DIR="/var/www/${SITE_NAME}"
 
@@ -29,8 +29,8 @@ function Install() {
 }
 
 function SetPermissions() {
-    Global_Permission "${TARGET_DIR}" "user"
-    Global_Permission "${TARGET_DIR}/images" "user"
+    Global_Permission "${TARGET_DIR}"
+    Global_Permission "${TARGET_DIR}/images"
 }
 
 function ConfigureSettings() {

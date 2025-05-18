@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # shellcheck source=/dev/null
-source /vagrant/public/bootstrap.sh
+source /vagrant/public/START.sh
 # Define the target directory
 SITE_NAME="bludit"
 TARGET_DIR="/var/www/${SITE_NAME}"
@@ -33,7 +33,7 @@ function ConfigureSettings() {
 }
 
 Install
-Global_Permission "${TARGET_DIR}" "user"
+Global_Permission "${TARGET_DIR}"
 Database_Create "$SITE_NAME"
 ConfigureSettings
 ApacheConfigure "$TARGET_DIR" "$SITE_NAME" # "ssl"

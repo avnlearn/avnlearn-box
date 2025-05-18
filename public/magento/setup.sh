@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # shellcheck source=/dev/null
-source /vagrant/public/bootstrap.sh
+source /vagrant/public/START.sh
 SITE_NAME="magento"
 TARGET_DIR="/var/www/${SITE_NAME}"
 
@@ -36,13 +36,13 @@ function Install() {
 }
 
 function SetPermissions() {
-    Global_Permission "${TARGET_DIR}" "user"
+    Global_Permission "${TARGET_DIR}"
     echo "Setting permissions for var, pub, and generated directories..."
     # mkdir -p ${TARGET_DIR}/{var,pub,generated}
     # chmod -R 777 "${TARGET_DIR}/var" "${TARGET_DIR}/pub" "${TARGET_DIR}/generated"
-    Global_Permission "${TARGET_DIR}/var" "user"
-    Global_Permission "${TARGET_DIR}/pub" "user"
-    Global_Permission "${TARGET_DIR}/generated" "user"
+    Global_Permission "${TARGET_DIR}/var"
+    Global_Permission "${TARGET_DIR}/pub"
+    Global_Permission "${TARGET_DIR}/generated"
     echo "Magento installation completed successfully."
 }
 

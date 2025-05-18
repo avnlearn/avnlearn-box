@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # shellcheck source=/dev/null
-source /vagrant/public/bootstrap.sh
+source /vagrant/public/START.sh
 # Define the target directory
 SITE_NAME="wordpress"
 TARGET_DIR="/var/www/${SITE_NAME}"
 
-function WP_CLI_Install() {
+function setup_wp_cli() {
     if ! command -v wp &>/dev/null; then
         Web_Download_File "https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar" "wp-cli.phar"
         chmod +x wp-cli.phar
@@ -40,8 +40,9 @@ function Install() {
 }
 
 function SetPermissions() {
-    Global_Permission "${TARGET_DIR}" "user"
-    # Global_Permission "${TARGET_DIR}/wp-content/uploads" "user"
+    Global_Permission "${TARGET_DIR}"
+    [ ! -d "${TARGET_DIR}/wp-content/uploads" ] && mkdir -p "${TARGET_DIR}/wp-content/uploads"
+    Global_Permission "${TARGET_DIR}/wp-content/uploads"
 }
 function ConfigureSettings() {
     echo "TODO : WordPress Setup"
@@ -64,13 +65,19 @@ define('AUTOMATIC_UPDATER_DISABLED', true); // Disable automatic updates
 // define('WP_DEBUG_LOG', '$TARGET_DIR/debug.log');
 PHP
     sudo wp core install --url="$SITE_NAME.local" --title="AvN Learn" --admin_user="${WEB_USERNAME}" --admin_password="${WEB_PASSWD}" --admin_email="${WEB_EMAIL_ID}" --allow-root
+    # Generate secret keys from WordPress API
+    SECRET_KEYS=$(curl -s https://api.wordpress.org/secret-key/1.1/salt/)
+    # Insert secret keys into wp-config.php
+    # Remove the default keys section and append the new keys
+    sed -i "/AUTH_KEY/,/NONCE_SALT/d" $TARGET_DIR/wp-config.php
+    echo -e "\n/**#@+\n * Authentication Unique Keys and Salts.\n */\n$SECRET_KEYS\n/**#@-*/" >>$TARGET_DIR/wp-config.php
 }
 
-WP_CLI_Install
+setup_wp_cli
 Install
 Database_Create "$SITE_NAME"
-SetPermissions
 ApacheConfigure "$TARGET_DIR" "$SITE_NAME" # "ssl"
 ConfigureSettings
+SetPermissions
 
 unset TARGET_DIR

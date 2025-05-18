@@ -1,5 +1,6 @@
 # Define the Vagrant box name (optional)
-VAGRANT_BOX = avnlearn-box
+VAGRANT_BOX = "avnlearn-box"
+BOX_ADDRESS = "avnlearn/avnlearn-box"
 
 # Define the Vagrantfile path
 VAGRANTFILE = Vagrantfile
@@ -76,7 +77,7 @@ package: check-vagrant
 # Add the Vagrant box
 .PHONY: add
 add:
-	@$(VAGRANT_CMD) box add $(VAGRANT_BOX) $(OUTPUT_BOX) || { echo "Failed to add the Vagrant box."; exit 1; }
+	@$(VAGRANT_CMD) box add $(BOX_ADDRESS) $(OUTPUT_BOX) || { echo "Failed to add the Vagrant box."; exit 1; }
 
 # List all available Vagrant commands
 .PHONY: help

@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # shellcheck source=/dev/null
-source /vagrant/public/bootstrap.sh
+source /vagrant/public/START.sh
 # Define the target directory
 
 SITE_NAME="fuelphp"
-TARGET_DIR="/var/www/${SITE_NAME}.local/public_html"
+TARGET_DIR="/var/www/${SITE_NAME}"
 function Install() {
     echo "Starting FuelPHP installation..."
     curl -L https://get.fuelphp.com/oil | sh

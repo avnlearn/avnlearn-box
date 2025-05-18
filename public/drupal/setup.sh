@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # shellcheck source=/dev/null
-source /vagrant/public/bootstrap.sh
+source /vagrant/public/START.sh
 # Define the target directory
 SITE_NAME="drupal"
 TARGET_DIR="/var/www/${SITE_NAME}"
@@ -70,7 +70,7 @@ function SetPermissions() {
     if [ ! -d "${TARGET_DIR}/sites/default/files" ]; then
         mkdir -p "${TARGET_DIR}/sites/default/files"
     fi
-    Global_Permission "${TARGET_DIR}/sites/default/files" "user"
+    Global_Permission "${TARGET_DIR}/sites/default/files"
 }
 
 function ConfigureSettings() {
@@ -84,8 +84,9 @@ function ConfigureSettings() {
     # Create settings.php file
     SETTING_FILE="${TARGET_DIR}/sites/default/settings.php"
     cp "${TARGET_DIR}/sites/default/default.settings.php" "${SETTING_FILE}"
-    Global_Permission "${SETTING_FILE}" "user"
+    Global_Permission "${SETTING_FILE}"
     ./vendor/bin/drush config:set system.site clean_url 1
+    ./vendor/bin/drush config:set system.site trusted_host_patterns '["^www\\.drupal\\.local$", "^drupal\\.local$"]'
     # Install Drupal using Drush
     ./vendor/bin/drush site-install standard --db-url="mysql://${WEB_USERNAME}:${WEB_PASSWD}@${WEB_HOSTNAME}/${SITE_NAME}" \
         --site-name="AvN Learn" \

@@ -1,31 +1,13 @@
 #!/usr/bin/env bash
 # shellcheck source=/dev/null
-source /vagrant/public/bootstrap.sh
+source /vagrant/public/START.sh
 SITE_NAME="processwire"
 TARGET_DIR="/var/www/${SITE_NAME}"
 
-function Install() {
-    echo "Starting ProcessWire installation..."
-
-    # Check if the target directory exists
-    if [ ! -d "/var/www" ]; then
-        echo "Error: /var/www/html does not exist. Exiting."
-        return 1
-    fi
-    cd /var/www || {
-        echo "Error: Failed to change directory to /var/www/html. Exiting."
-        return 1
-    }
-    # Download the latest ProcessWire package
-    echo "Downloading ProcessWire..."
-    sudo git clone https://github.com/processwire/processwire.git
-
-}
-
 function SetPermissions() {
-    Global_Permission "${TARGET_DIR}" "user"
+    Global_Permission "${TARGET_DIR}"
     [[ ! -d "${TARGET_DIR}/assets" ]] && mkdir -p "${TARGET_DIR}/assets"
-    Global_Permission "${TARGET_DIR}/assets" "user"
+    Global_Permission "${TARGET_DIR}/assets"
 }
 
 function ConfigureSettings() {
@@ -54,7 +36,7 @@ EOL
     echo "ProcessWire configuration file created successfully."
 }
 
-Install
+git_clone "https://github.com/processwire/processwire.git"
 SetPermissions
 Database_Create "$SITE_NAME"
 ConfigureSettings

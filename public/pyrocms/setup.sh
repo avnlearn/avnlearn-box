@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # shellcheck source=/dev/null
-source /vagrant/public/bootstrap.sh
+source /vagrant/public/START.sh
 # Define the target directory
 SITE_NAME="pyrocms"
 TARGET_DIR="/var/www/${SITE_NAME}.local/public_html"

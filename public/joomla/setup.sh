@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # shellcheck source=/dev/null
-source /vagrant/public/bootstrap.sh
+source /vagrant/public/START.sh
 # Define the target directory
 
 SITE_NAME="joomla"
@@ -33,10 +33,10 @@ function Install() {
 }
 
 function SetPermissions() {
-    Global_Permission "${TARGET_DIR}" "user"
+    Global_Permission "${TARGET_DIR}"
     mkdir -p ${TARGET_DIR}/{logs,tmp}
-    Global_Permission "${TARGET_DIR}/logs" "user"
-    Global_Permission "${TARGET_DIR}/tmp" "user"
+    Global_Permission "${TARGET_DIR}/logs"
+    Global_Permission "${TARGET_DIR}/tmp"
 }
 
 function ConfigureSettings() {
